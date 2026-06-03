@@ -103,7 +103,9 @@ function updateStravaUI(connected, athleteName){
 function connectStrava(){
   var serverUrl=getServerUrl();
   if(!serverUrl){ toast('Imposta prima il Server URL nelle Impostazioni'); openModal('settings-modal'); return; }
-  window.location.href=serverUrl+'/auth/strava?userId='+getUserId();
+  var url=serverUrl+'/auth/strava?userId='+getUserId();
+  var popup=window.open(url,'strava-auth','width=600,height=700,left=200,top=100');
+  if(!popup){ window.location.href=url; }
 }
 function disconnectStrava(){
   var serverUrl=getServerUrl();
@@ -129,6 +131,17 @@ $('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
       $('strava-sync-status').textContent='Sincronizzati '+newActs.length+' nuovi allenamenti.';
       toast('Sincronizzati '+newActs.length+' allenamenti da Strava');
     }).catch(function(e){ $('strava-sync-status').textContent='Errore sincronizzazione.'; console.error(e); });
+});
+
+// Ascolta messaggio dal popup Strava
+window.addEventListener('message', function(e){
+  if(e.data && e.data.type==='strava_connected'){
+    localStorage.setItem('stravaConnected','true');
+    if(e.data.name) localStorage.setItem('stravaAthleteName', e.data.name);
+    toast('Strava connesso! Benvenuto '+e.data.name);
+    checkStravaStatus();
+    renderHome();
+  }
 });
 
 // Controlla se arriviamo da redirect Strava
