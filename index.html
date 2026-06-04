@@ -9,6 +9,12 @@
 </head>
 <body>
 
+<button id="mob-menu-btn" style="display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--s1);border:1px solid var(--line2);border-radius:8px;width:38px;height:38px;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:5px">
+  <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px"></span>
+  <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px"></span>
+  <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px"></span>
+</button>
+<div id="mob-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:98;backdrop-filter:blur(4px)"></div>
 <aside class="sidebar">
   <div class="sb-logo">
     <div class="sb-logo-text">Endurance</div>
@@ -79,6 +85,25 @@
       <div class="cr-body" id="cr-body">—</div>
       <div class="cr-stats" id="cr-stats"></div>
       <div class="cr-cta" id="cr-cta-btn">Leggi analisi nella chat <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+    </div>
+
+    <!-- Discipline strip -->
+    <div class="disc-strip">
+      <div class="disc-card-tri swim">
+        <div class="disc-name">🏊 Nuoto</div>
+        <div class="disc-val" id="disc-swim-km">—</div>
+        <div class="disc-sub">km questa sett.</div>
+      </div>
+      <div class="disc-card-tri bike">
+        <div class="disc-name">🚴 Bici</div>
+        <div class="disc-val" id="disc-bike-km">—</div>
+        <div class="disc-sub">km questa sett.</div>
+      </div>
+      <div class="disc-card-tri run">
+        <div class="disc-name">🏃 Corsa</div>
+        <div class="disc-val" id="disc-run-km">—</div>
+        <div class="disc-sub">km questa sett.</div>
+      </div>
     </div>
 
     <div class="s3">
@@ -212,7 +237,23 @@
       </div>
       <div class="row-act"><button class="btn btn-primary" id="btn-add-log">Aggiungi e analizza</button></div>
     </div>
-    <div class="card"><div class="sh"><h2>Storico</h2><span style="font-size:.63rem;color:var(--t2)" id="logCount"></span></div><div id="logList" style="max-height:600px;overflow-y:auto;scrollbar-width:thin"><p style="font-size:.74rem;color:var(--t2)">Nessun allenamento.</p></div></div>
+    <!-- Storico allenamenti -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px">
+          <h2 style="font-size:.82rem;font-weight:600;letter-spacing:-.2px">Storico</h2>
+          <span style="font-size:.62rem;color:var(--t2)" id="logCount"></span>
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap" id="log-filter-btns">
+          <button class="lf-btn active" data-filter="all">Tutti</button>
+          <button class="lf-btn" data-filter="run">🏃 Corsa</button>
+          <button class="lf-btn" data-filter="bike">🚴 Bici</button>
+          <button class="lf-btn" data-filter="swim">🏊 Nuoto</button>
+          <button class="lf-btn" data-filter="other">Altro</button>
+        </div>
+      </div>
+      <div id="logList" style="max-height:520px;overflow-y:auto;scrollbar-width:thin"></div>
+    </div>
   </div>
 
   <!-- OBIETTIVI -->
@@ -346,7 +387,7 @@
     <div class="card" style="margin-bottom:.5rem">
       <div class="card-label">Server</div>
       <div class="info-box" style="margin-bottom:.75rem">Inserisci l'URL del tuo server Vercel. Tutte le chiamate AI e Strava passeranno da lì.</div>
-      <div class="field"><label>Server URL</label><input id="server-url" placeholder="https://tuo-app.vercel.app"></div>
+      <div class="field"><label>Server URL</label><input id="server-url" placeholder="https://tuo-app.vercel.app"><span style="font-size:.62rem;color:var(--t2);display:block;margin-top:3px">Lascia vuoto per usare il server di default</span></div>
       <div class="row-act"><button class="btn btn-primary" id="btn-save-server">Salva</button></div>
     </div>
     <div class="card" style="margin-bottom:.5rem">

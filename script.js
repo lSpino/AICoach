@@ -8,7 +8,7 @@ function getGoals(){ try{ return JSON.parse(localStorage.getItem('goals')||'[]')
 function getProfile(){ try{ return JSON.parse(localStorage.getItem('athlete')||'{}'); }catch(e){ return {}; } }
 function saveLogs(l){ l.sort(function(a,b){return new Date(b.data)-new Date(a.data);}); localStorage.setItem('logs',JSON.stringify(l)); }
 function saveGoals(g){ localStorage.setItem('goals',JSON.stringify(g)); }
-function getServerUrl(){ return localStorage.getItem('serverUrl')||''; }
+function getServerUrl(){ var saved=localStorage.getItem('serverUrl'); return saved||'https://ai-coach-brown.vercel.app'; }
 function getUserId(){ var id=localStorage.getItem('userId'); if(!id){ id='user_'+Math.random().toString(36).slice(2); localStorage.setItem('userId',id); } return id; }
 
 var SPORTS=['Corsa','Bici / Ciclismo','Nuoto','Triathlon','Palestra / Forza','Trail Running','MTB','Sci di fondo','Altro'];
@@ -49,6 +49,16 @@ $('btn-save-server').onclick=function(){
   var url=$('server-url').value.trim().replace(/\/$/,'');
   if(url){ localStorage.setItem('serverUrl',url); toast('Server salvato'); checkStravaStatus(); }
 };
+if($('ai-provider')) $('ai-provider').onchange=function(){ localStorage.setItem('aiProvider',this.value); };
+if($('ai-key')) $('ai-key').oninput=function(){ localStorage.setItem('aiKey',this.value); };
+if($('ai-model')) $('ai-model').oninput=function(){ localStorage.setItem('aiModel',this.value); };
+// Load saved values into settings
+var _savedProvider=localStorage.getItem('aiProvider');
+var _savedKey=localStorage.getItem('aiKey');
+var _savedModel=localStorage.getItem('aiModel');
+if($('ai-provider')&&_savedProvider) $('ai-provider').value=_savedProvider;
+if($('ai-key')&&_savedKey) $('ai-key').value=_savedKey;
+if($('ai-model')&&_savedModel) $('ai-model').value=_savedModel;
 
 // ── Strava ────────────────────────────────────
 function checkStravaStatus(){
@@ -217,21 +227,60 @@ initPush();
 function callAI(messages,system,maxTok){
   maxTok=maxTok||600;
   var serverUrl=getServerUrl();
-  if(serverUrl){
-    // Usa il proxy server → nessun problema CORS, API key sicura lato server
+  var provider=localStorage.getItem('aiProvider')||'anthropic';
+  var apiKey=localStorage.getItem('aiKey')||'';
+  var model=localStorage.getItem('aiModel')||'';
+
+  // ── Anthropic via server proxy (preferred) ──
+  if(provider==='anthropic'&&serverUrl){
     return fetch(serverUrl+'/api/ai',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTok,system:system,messages:messages})
+      body:JSON.stringify({model:model||'claude-sonnet-4-20250514',max_tokens:maxTok,system:system,messages:messages})
     }).then(function(r){ return r.json(); })
-      .then(function(d){ if(d.error) throw new Error(d.error.message||d.error); return d.content&&d.content.map(function(b){ return b.text||''; }).join('')||''; });
+      .then(function(d){ if(d.error) throw new Error(d.error.message||d.error); return (d.content||[]).map(function(b){ return b.text||''; }).join('')||''; });
   }
-  // Fallback: chiamata diretta (funziona su Claude.ai)
-  return fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTok,system:system,messages:messages})
-  }).then(function(r){ return r.json(); })
-    .then(function(d){ if(d.error) throw new Error(d.error.message); return d.content&&d.content.map(function(b){ return b.text||''; }).join('')||''; });
+
+  // ── Anthropic diretto (richiede API key) ──
+  if(provider==='anthropic'){
+    if(!apiKey) return Promise.reject(new Error('Imposta la Anthropic API key nelle Impostazioni'));
+    return fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:model||'claude-sonnet-4-20250514',max_tokens:maxTok,system:system,messages:messages})
+    }).then(function(r){ return r.json(); })
+      .then(function(d){ if(d.error) throw new Error(d.error.message); return (d.content||[]).map(function(b){ return b.text||''; }).join('')||''; });
+  }
+
+  // ── OpenAI ──
+  if(provider==='openai'){
+    if(!apiKey) return Promise.reject(new Error('Imposta la OpenAI API key nelle Impostazioni'));
+    var oaiMessages=[{role:'system',content:system}].concat(messages);
+    return fetch('https://api.openai.com/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+      body:JSON.stringify({model:model||'gpt-4o',max_tokens:maxTok,messages:oaiMessages})
+    }).then(function(r){ return r.json(); })
+      .then(function(d){ if(d.error) throw new Error(d.error.message); return d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content||''; });
+  }
+
+  // ── Gemini ──
+  if(provider==='gemini'){
+    if(!apiKey) return Promise.reject(new Error('Imposta la Google API key nelle Impostazioni'));
+    var gemModel=model||'gemini-1.5-flash';
+    var gemContents=messages.map(function(m){ return {role:m.role==='assistant'?'model':m.role,parts:[{text:m.content}]}; });
+    if(system) gemContents.unshift({role:'user',parts:[{text:system}]});
+    return fetch('https://generativelanguage.googleapis.com/v1beta/models/'+gemModel+':generateContent?key='+apiKey,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:gemContents,generationConfig:{maxOutputTokens:maxTok}})
+    }).then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.error) throw new Error(d.error.message);
+        return d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts&&d.candidates[0].content.parts[0]&&d.candidates[0].content.parts[0].text||'';
+      });
+  }
+
+  return Promise.reject(new Error('Provider AI non configurato'));
 }
 
 // ── System prompt ─────────────────────────────
@@ -359,7 +408,10 @@ function renderHome(){
   // Today hero from plan
   var _plan = null; try{ _plan = JSON.parse(localStorage.getItem('currentPlan')||'null'); }catch(e){}
   var _todayIdx = -1;
-  if(_plan && _plan.length){ var _dow = (new Date().getDay()+6)%7; _todayIdx = _dow < _plan.length ? _dow : -1; }
+  if(_plan && _plan.length){ // Timezone-safe: use local date string to get day
+  var _today = new Date(); var _dow = _today.getDay(); // 0=Sun,1=Mon...
+  var _monIdx = (_dow+6)%7; // convert to Mon=0 index
+  _todayIdx = _monIdx < _plan.length ? _monIdx : -1; }
   var _td = (_todayIdx>=0 && _plan && _plan[_todayIdx]) ? _plan[_todayIdx] : null;
   if($('th-tss-badge')) $('th-tss-badge').textContent = _td && _td.tss>0 ? 'TSS '+_td.tss : 'Riposo';
   if($('th-title')) $('th-title').textContent = _td && _td.tss>0 ? (_td.titolo||'Allenamento') : (_plan?'Giorno di riposo':'Nessun piano attivo');
@@ -403,7 +455,7 @@ function renderHome(){
   }
   // Week bar
   var _DAYS=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
-  var _todayDow=(new Date().getDay()+6)%7;
+  var _todayDow=(new Date().getDay()+6)%7; // Mon=0,Tue=1...Sun=6
   var _grid=$('week-days-grid');
   if(_grid){
     _grid.innerHTML='';
@@ -570,11 +622,85 @@ function generateFeedback(entry){
     .catch(function(){});
 }
 function deleteLog(id){ saveLogs(getLogs().filter(function(l){ return l.id!==id; })); renderLogs(); renderHome(); drawCharts(); }
-function renderLogs(){
-  var logs=getLogs(); $('logCount').textContent=logs.length+' allenament'+(logs.length===1?'o':'i');
-  var el=$('logList'); if(!logs.length){ el.innerHTML='<p style="font-size:.74rem;color:var(--t2)">Nessun allenamento.</p>'; return; }
-  var html=''; logs.forEach(function(l){ html+='<div class="rsep"><div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:.78rem;font-weight:600">'+(l.tipo||l.titolo||l.sport||'Allenamento')+'</span><span style="font-size:.62rem;color:var(--t2)">'+l.data+'</span>'+((l.fonte==='strava'||l.source==='strava')?'<span class="badge b-orange">Strava</span>':'')+'</div><button class="btn-del ldel" data-lid="'+l.id+'" style="font-size:1.1rem">×</button></div><div class="log-stats">'+(l.km||l.distanza?'<div class="log-stat"><strong>'+(l.km?l.km+' km':l.distanza)+'</strong><span>Dist.</span></div>':'')+(l.durata?'<div class="log-stat"><strong>'+l.durata+'</strong><span>Durata</span></div>':'')+(l.fc?'<div class="log-stat"><strong>'+l.fc+'</strong><span>FC</span></div>':'')+(l.tss?'<div class="log-stat"><strong>'+l.tss+'</strong><span>TSS</span></div>':'')+(l.passo?'<div class="log-stat"><strong>'+l.passo+'/km</strong><span>Passo</span></div>':'')+(l.d?'<div class="log-stat"><strong>'+l.d+'m</strong><span>D+</span></div>':'')+(l.power?'<div class="log-stat"><strong>'+l.power+'W</strong><span>Pot.</span></div>':'')+'</div>'+(l.note?'<div class="log-note">'+l.note+'</div>':'')+(l.feedback?'<div class="log-fb"><div class="log-fb-lbl">Feedback coach</div>'+l.feedback+'</div>':'')+'</div>'; });
-  el.innerHTML=html; el.querySelectorAll('.ldel').forEach(function(b){ b.onclick=function(){ deleteLog(+this.dataset.lid); }; });
+function renderLogs(filterArg){
+  var activeFilter = filterArg || window._logFilter || 'all';
+  window._logFilter = activeFilter;
+  var allLogs = getLogs();
+  // Sort most recent first
+  allLogs.sort(function(a,b){ return new Date(b.data)-new Date(a.data); });
+  // Filter
+  var logs = activeFilter==='all' ? allLogs : allLogs.filter(function(l){
+    var s=(l.sport||l.tipo||l.titolo||'').toLowerCase();
+    if(activeFilter==='run') return /run|corsa|trail|jogg|marcia/.test(s);
+    if(activeFilter==='bike') return /ride|bici|cycling|ciclismo|bike|velo/.test(s);
+    if(activeFilter==='swim') return /swim|nuoto|nuo/.test(s);
+    if(activeFilter==='other') return !/run|corsa|trail|jogg|ride|bici|cycling|ciclismo|bike|swim|nuoto/.test(s);
+    return true;
+  });
+
+  var countEl=$('logCount');
+  if(countEl) countEl.textContent=allLogs.length+' allenament'+(allLogs.length===1?'o':'i')+(activeFilter!=='all'?' · '+logs.length+' filtrati':'');
+  var el=$('logList'); if(!el) return;
+
+  // Update filter button states
+  document.querySelectorAll('.lf-btn').forEach(function(b){
+    b.classList.toggle('active', b.dataset.filter===activeFilter);
+  });
+
+  if(!logs.length){
+    el.innerHTML='<div style="padding:32px;text-align:center;font-size:.74rem;color:var(--t2)">'+(activeFilter!=='all'?'Nessun allenamento in questa categoria.':'Nessun allenamento. Sincronizza Strava o aggiungi manualmente.')+'</div>';
+    return;
+  }
+
+  var sportIcons={'run':'🏃','bike':'🚴','swim':'🏊','other':'💪'};
+  var sportColors={'run':'var(--run)','bike':'var(--bike)','swim':'var(--swim)','other':'var(--acc-l)'};
+  var sportBg={'run':'var(--run2)','bike':'var(--bike2)','swim':'var(--swim2)','other':'var(--acc2)'};
+  var sportLabels={'run':'Corsa','bike':'Bici','swim':'Nuoto','other':'Allenamento'};
+
+  var html='';
+  logs.forEach(function(l){
+    var cat=(function(s){
+      s=(s||'').toLowerCase();
+      if(/swim|nuoto|nuo/.test(s)) return 'swim';
+      if(/run|corsa|trail|jogg|marcia/.test(s)) return 'run';
+      if(/ride|bici|cycling|ciclismo|bike|velo/.test(s)) return 'bike';
+      return 'other';
+    })(l.sport||l.tipo||l.titolo||'');
+
+    var title = l.tipo||l.titolo||l.sport||sportLabels[cat]||'Allenamento';
+    var isStrava = l.fonte==='strava'||l.source==='strava';
+    var tssNum = l.tss||0;
+    var tssColor = tssNum===0?'var(--t3)':tssNum<60?'var(--gn)':tssNum<100?'var(--acc-l)':tssNum<140?'var(--am)':'var(--rd)';
+
+    html += '<div class="log-card" data-lid="'+l.id+'">';
+    html += '<button class="log-del ldel" data-lid="'+l.id+'">×</button>';
+    html += '<div class="log-card-top">';
+    html += '<div style="display:flex;align-items:flex-start;gap:10px">';
+    html += '<div class="log-sport-icon" style="background:'+sportBg[cat]+'">'+sportIcons[cat]+'</div>';
+    html += '<div class="log-card-left">';
+    html += '<div class="log-card-sport">'+sportLabels[cat]+(isStrava?' · Strava':'')+'</div>';
+    html += '<div class="log-card-title">'+title+'</div>';
+    html += '<div class="log-card-date">'+l.data+'</div>';
+    html += '</div></div>';
+    if(tssNum>0) html += '<div class="log-card-tss"><div class="log-tss-num" style="color:'+tssColor+'">'+tssNum+'</div><div class="log-tss-lbl">TSS</div></div>';
+    html += '</div>';
+    html += '<div class="log-metrics">';
+    if(l.km||l.distanza) html += '<div class="log-metric"><strong>'+(l.km?l.km+' km':l.distanza)+'</strong><span>Distanza</span></div>';
+    if(l.durata) html += '<div class="log-metric"><strong>'+l.durata+'</strong><span>Durata</span></div>';
+    if(l.fc) html += '<div class="log-metric"><strong>'+l.fc+' bpm</strong><span>FC media</span></div>';
+    if(l.passo) html += '<div class="log-metric"><strong>'+l.passo+'</strong><span>Passo</span></div>';
+    if(l.power) html += '<div class="log-metric"><strong>'+l.power+'W</strong><span>Potenza</span></div>';
+    if(l.elevation||l.d) html += '<div class="log-metric"><strong>'+(l.elevation||l.d)+'m</strong><span>D+</span></div>';
+    html += '</div>';
+    if(l.note) html += '<div class="log-card-note">'+l.note+'</div>';
+    if(l.feedback) html += '<div class="log-card-fb"><div style="font-size:.55rem;color:var(--acc-l);text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:3px">Feedback coach</div>'+l.feedback+'</div>';
+    html += '</div>';
+  });
+
+  el.innerHTML = html;
+  el.querySelectorAll('.ldel').forEach(function(b){
+    b.onclick=function(){ deleteLog(this.dataset.lid); };
+  });
 }
 renderLogs();
 
@@ -623,6 +749,25 @@ function cpRmTyping(){ var e=$('cpt'); if(e) e.remove(); }
 })();
 
 window.onresize=function(){ if(document.querySelector('#tab-home.active')) drawCharts(); };
+
+// ── Mobile menu ──────────────────────────────────
+(function(){
+  var btn=document.getElementById('mob-menu-btn');
+  var ov=document.getElementById('mob-overlay');
+  var sb=document.querySelector('.sidebar');
+  if(!btn||!sb) return;
+  function openMenu(){ sb.classList.add('mob-open'); if(ov) ov.classList.add('show'); }
+  function closeMenu(){ sb.classList.remove('mob-open'); if(ov) ov.classList.remove('show'); }
+  btn.onclick=openMenu;
+  if(ov) ov.onclick=closeMenu;
+  // Close on nav item click (mobile)
+  sb.querySelectorAll('.sb-item').forEach(function(item){
+    item.addEventListener('click',function(){ if(window.innerWidth<=768) closeMenu(); });
+  });
+  sb.querySelectorAll('.sb-profile,.sb-settings-btn').forEach(function(item){
+    item.addEventListener('click',function(){ if(window.innerWidth<=768) closeMenu(); });
+  });
+})();
 
 
 function getDefaultPrompt(){
