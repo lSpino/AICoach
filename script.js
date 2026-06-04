@@ -53,12 +53,13 @@ $('btn-save-server').onclick=function(){
 // ── Strava ────────────────────────────────────
 function checkStravaStatus(){
   var serverUrl=getServerUrl();
-  // Se non c'è server, controlla se abbiamo salvato lo stato localmente
   var localStatus=localStorage.getItem('stravaConnected');
   if(!serverUrl){
+    // Anche senza server mostra UI corretta e wira il bottone
     if(localStatus==='true'){
-      var name=localStorage.getItem('stravaAthleteName')||'Strava';
-      updateStravaUI(true, name);
+      updateStravaUI(true, localStorage.getItem('stravaAthleteName')||'Strava');
+    } else {
+      updateStravaUI(false,'');
     }
     return;
   }
@@ -153,6 +154,11 @@ window.addEventListener('message', function(e){
     window.history.replaceState({},'','/');
   }
   checkStravaStatus();
+// Fallback: wira bottone statico se non ancora wirato
+(function(){
+  var b = document.getElementById('btn-connect-strava');
+  if(b && !b.onclick) b.onclick = connectStrava;
+})();
 })();
 
 // ── Push notifications ───────────────────────
