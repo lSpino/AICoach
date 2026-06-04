@@ -127,7 +127,14 @@ $('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
       if(!d.activities) throw new Error('Nessuna attività');
       var existing=getLogs(); var existingIds=existing.map(function(l){ return l.stravaId; });
       var newActs=d.activities.filter(function(a){ return !existingIds.includes(a.stravaId); });
-      newActs.forEach(function(a){ a.id=Date.now()+Math.random(); existing.unshift(a); });
+      newActs.forEach(function(a){
+        a.id = Date.now()+Math.random();
+        // Normalize Strava fields to app log format
+        if(!a.tipo && a.titolo) a.tipo = a.titolo;
+        if(!a.tipo && a.sport) a.tipo = a.sport;
+        if(!a.km && a.distanza) a.km = a.distanza;
+        existing.unshift(a);
+      });
       saveLogs(existing); renderLogs(); renderHome(); drawCharts();
       $('strava-sync-status').textContent='Sincronizzati '+newActs.length+' nuovi allenamenti.';
       toast('Sincronizzati '+newActs.length+' allenamenti da Strava');
@@ -339,7 +346,7 @@ function renderHome(){
   $('today-wu').innerHTML=todayHtml;
   var cm={'A — Principale':'b-blue','B — Secondario':'b-green','C — Complementare':'b-muted'};
   $('home-goals').innerHTML=goals.length?goals.map(function(g){ return '<div class="rsep"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:.77rem;font-weight:500">'+g.nome+'</div><div style="font-size:.63rem;color:var(--t2);margin-top:2px">'+g.tipo+' · '+g.data+(g.target?' · '+g.target:'')+'</div></div><span class="badge '+(cm[g.prio]||'b-muted')+'">'+g.prio.split('—')[0].trim()+'</span></div></div>'; }).join(''):'<p style="font-size:.74rem;color:var(--t2)">Nessun obiettivo.</p>';
-  $('recent-log').innerHTML=logs.length?logs.slice(0,4).map(function(l){ return '<div class="rsep"><div style="display:flex;justify-content:space-between"><span style="font-size:.77rem;font-weight:500">'+l.tipo+'</span><span style="font-size:.62rem;color:var(--t2)">'+l.data+'</span></div><div class="log-stats">'+(l.km?'<div class="log-stat"><strong>'+l.km+'</strong><span>km</span></div>':'')+(l.durata?'<div class="log-stat"><strong>'+l.durata+'</strong><span>dur.</span></div>':'')+(l.tss?'<div class="log-stat"><strong>'+l.tss+'</strong><span>TSS</span></div>':'')+'</div></div>'; }).join(''):'<p style="font-size:.74rem;color:var(--t2)">Nessun allenamento.</p>';
+  $('recent-log').innerHTML=logs.length?logs.slice(0,4).map(function(l){ return '<div class="rsep"><div style="display:flex;justify-content:space-between"><span style="font-size:.77rem;font-weight:500">'+l.tipo+'</span><span style="font-size:.62rem;color:var(--t2)">'+l.data+'</span></div><div class="log-stats">'+(l.km?'<div class="log-stat"><strong>'+l.km+'</strong><span>km</span></div>':l.distanza?'<div class="log-stat"><strong>'+l.distanza+'</strong><span></span></div>':'')+(l.durata?'<div class="log-stat"><strong>'+l.durata+'</strong><span>dur.</span></div>':'')+(l.tss?'<div class="log-stat"><strong>'+l.tss+'</strong><span>TSS</span></div>':'')+'</div></div>'; }).join(''):'<p style="font-size:.74rem;color:var(--t2)">Nessun allenamento.</p>';
   computeIndicators();
 
   // ── HOME v2 ──
@@ -550,7 +557,7 @@ function deleteLog(id){ saveLogs(getLogs().filter(function(l){ return l.id!==id;
 function renderLogs(){
   var logs=getLogs(); $('logCount').textContent=logs.length+' allenament'+(logs.length===1?'o':'i');
   var el=$('logList'); if(!logs.length){ el.innerHTML='<p style="font-size:.74rem;color:var(--t2)">Nessun allenamento.</p>'; return; }
-  var html=''; logs.slice(0,25).forEach(function(l){ html+='<div class="rsep"><div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:.78rem;font-weight:600">'+l.tipo+'</span><span style="font-size:.62rem;color:var(--t2)">'+l.data+'</span>'+(l.source==='strava'?'<span class="badge b-orange">Strava</span>':'')+'</div><button class="btn-del ldel" data-lid="'+l.id+'" style="font-size:1.1rem">×</button></div><div class="log-stats">'+(l.km?'<div class="log-stat"><strong>'+l.km+' km</strong><span>Dist.</span></div>':'')+(l.durata?'<div class="log-stat"><strong>'+l.durata+'</strong><span>Durata</span></div>':'')+(l.fc?'<div class="log-stat"><strong>'+l.fc+'</strong><span>FC</span></div>':'')+(l.tss?'<div class="log-stat"><strong>'+l.tss+'</strong><span>TSS</span></div>':'')+(l.passo?'<div class="log-stat"><strong>'+l.passo+'/km</strong><span>Passo</span></div>':'')+(l.d?'<div class="log-stat"><strong>'+l.d+'m</strong><span>D+</span></div>':'')+(l.power?'<div class="log-stat"><strong>'+l.power+'W</strong><span>Pot.</span></div>':'')+'</div>'+(l.note?'<div class="log-note">'+l.note+'</div>':'')+(l.feedback?'<div class="log-fb"><div class="log-fb-lbl">Feedback coach</div>'+l.feedback+'</div>':'')+'</div>'; });
+  var html=''; logs.slice(0,25).forEach(function(l){ html+='<div class="rsep"><div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:.78rem;font-weight:600">'+l.tipo+'</span><span style="font-size:.62rem;color:var(--t2)">'+l.data+'</span>'+((l.fonte==='strava'||l.source==='strava')?'<span class="badge b-orange">Strava</span>':'')+'</div><button class="btn-del ldel" data-lid="'+l.id+'" style="font-size:1.1rem">×</button></div><div class="log-stats">'+(l.km?'<div class="log-stat"><strong>'+l.km+' km</strong><span>Dist.</span></div>':'')+(l.durata?'<div class="log-stat"><strong>'+l.durata+'</strong><span>Durata</span></div>':'')+(l.fc?'<div class="log-stat"><strong>'+l.fc+'</strong><span>FC</span></div>':'')+(l.tss?'<div class="log-stat"><strong>'+l.tss+'</strong><span>TSS</span></div>':'')+(l.passo?'<div class="log-stat"><strong>'+l.passo+'/km</strong><span>Passo</span></div>':'')+(l.d?'<div class="log-stat"><strong>'+l.d+'m</strong><span>D+</span></div>':'')+(l.power?'<div class="log-stat"><strong>'+l.power+'W</strong><span>Pot.</span></div>':'')+'</div>'+(l.note?'<div class="log-note">'+l.note+'</div>':'')+(l.feedback?'<div class="log-fb"><div class="log-fb-lbl">Feedback coach</div>'+l.feedback+'</div>':'')+'</div>'; });
   el.innerHTML=html; el.querySelectorAll('.ldel').forEach(function(b){ b.onclick=function(){ deleteLog(+this.dataset.lid); }; });
 }
 renderLogs();
