@@ -1,8 +1,7 @@
 {
   "version": 2,
-  "routes": [
-    { "src": "/auth/(.*)", "dest": "/api/index.js" },
-    { "src": "/api/(.*)",  "dest": "/api/index.js" },
-    { "src": "/(.*)",      "dest": "/$1" }
+  "rewrites": [
+    { "source": "/auth/:path*", "destination": "/api/index" },
+    { "source": "/api/:path*",  "destination": "/api/index" }
   ]
 }
