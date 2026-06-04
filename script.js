@@ -1,3 +1,4 @@
+
 (function(){
 'use strict';
 
@@ -36,11 +37,31 @@ $('btn-goto-log').onclick=function(){ showTab('log'); };
 function openModal(id){ $(id).classList.add('open'); }
 function closeModal(id){ $(id).classList.remove('open'); }
 $('open-profilo').onclick=function(){ openModal('profilo-modal'); };
-$('open-settings').onclick=function(){ openModal('settings-modal'); var su=getServerUrl(); if(su) $('server-url').value=su; var _sp=localStorage.getItem('customPlanPrompt'); if($('custom-plan-prompt')) $('custom-plan-prompt').value=_sp!==null?_sp:getDefaultPrompt(); };
+$('open-settings').onclick=function(){
+  openModal('settings-modal');
+  // Server URL
+  var su=getServerUrl(); if(su&&$('server-url')) $('server-url').value=su;
+  // AI settings
+  var _prov=localStorage.getItem('aiProvider')||'anthropic';
+  var _key=localStorage.getItem('aiKey')||'';
+  var _mod=localStorage.getItem('aiModel')||'';
+  if($('ai-provider')) $('ai-provider').value=_prov;
+  if($('apikey')) $('apikey').value=_key;
+  if($('ai-model')) $('ai-model').value=_mod;
+  // Prompt
+  var _sp=localStorage.getItem('customPlanPrompt');
+  if($('custom-plan-prompt')) $('custom-plan-prompt').value=_sp!==null?_sp:getDefaultPrompt();
+};
 $('close-profilo').onclick=function(){ closeModal('profilo-modal'); };
 $('btn-close-profilo').onclick=function(){ closeModal('profilo-modal'); };
 $('close-settings').onclick=function(){ closeModal('settings-modal'); };
-$('btn-close-settings').onclick=function(){ closeModal('settings-modal'); };
+$('btn-close-settings').onclick=function(){
+  // Auto-save AI settings on close
+  if($('ai-provider')) localStorage.setItem('aiProvider',$('ai-provider').value);
+  if($('apikey')&&$('apikey').value.trim()) localStorage.setItem('aiKey',$('apikey').value.trim());
+  if($('ai-model')&&$('ai-model').value.trim()) localStorage.setItem('aiModel',$('ai-model').value.trim());
+  closeModal('settings-modal');
+};
 if($('btn-save-prompt')) $('btn-save-prompt').onclick=function(){ var v=$('custom-plan-prompt').value.trim(); if(v) localStorage.setItem('customPlanPrompt',v); else localStorage.removeItem('customPlanPrompt'); toast('Prompt salvato'); };
 if($('btn-reset-prompt')) $('btn-reset-prompt').onclick=function(){ localStorage.removeItem('customPlanPrompt'); if($('custom-plan-prompt')) $('custom-plan-prompt').value=getDefaultPrompt(); toast('Prompt ripristinato'); };
 document.querySelectorAll('.modal-ov').forEach(function(m){ m.onclick=function(e){ if(e.target===m) m.classList.remove('open'); }; });
@@ -50,14 +71,14 @@ $('btn-save-server').onclick=function(){
   if(url){ localStorage.setItem('serverUrl',url); toast('Server salvato'); checkStravaStatus(); }
 };
 if($('ai-provider')) $('ai-provider').onchange=function(){ localStorage.setItem('aiProvider',this.value); };
-if($('ai-key')) $('ai-key').oninput=function(){ localStorage.setItem('aiKey',this.value); };
+if($('apikey')) $('apikey').oninput=function(){ localStorage.setItem('aiKey',this.value); };
 if($('ai-model')) $('ai-model').oninput=function(){ localStorage.setItem('aiModel',this.value); };
 // Load saved values into settings
 var _savedProvider=localStorage.getItem('aiProvider');
 var _savedKey=localStorage.getItem('aiKey');
 var _savedModel=localStorage.getItem('aiModel');
 if($('ai-provider')&&_savedProvider) $('ai-provider').value=_savedProvider;
-if($('ai-key')&&_savedKey) $('ai-key').value=_savedKey;
+if($('apikey')&&_savedKey) $('apikey').value=_savedKey;
 if($('ai-model')&&_savedModel) $('ai-model').value=_savedModel;
 
 // ── Strava ────────────────────────────────────
