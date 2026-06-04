@@ -6,7 +6,7 @@ function toast(m){ var t=$('toast'); t.textContent=m; t.classList.add('show'); s
 function getLogs(){ try{ return JSON.parse(localStorage.getItem('logs')||'[]'); }catch(e){ return []; } }
 function getGoals(){ try{ return JSON.parse(localStorage.getItem('goals')||'[]'); }catch(e){ return []; } }
 function getProfile(){ try{ return JSON.parse(localStorage.getItem('athlete')||'{}'); }catch(e){ return {}; } }
-function saveLogs(l){ localStorage.setItem('logs',JSON.stringify(l)); }
+function saveLogs(l){ l.sort(function(a,b){return new Date(b.data)-new Date(a.data);}); localStorage.setItem('logs',JSON.stringify(l)); }
 function saveGoals(g){ localStorage.setItem('goals',JSON.stringify(g)); }
 function getServerUrl(){ return localStorage.getItem('serverUrl')||''; }
 function getUserId(){ var id=localStorage.getItem('userId'); if(!id){ id='user_'+Math.random().toString(36).slice(2); localStorage.setItem('userId',id); } return id; }
@@ -121,7 +121,7 @@ $('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
   var serverUrl=getServerUrl(); if(!serverUrl) return;
   var userId=getUserId();
   $('strava-sync-status').textContent='Sincronizzazione in corso...';
-  fetch(serverUrl+'/api/strava/activities?userId='+userId+'&perPage=30')
+  fetch(serverUrl+'/api/strava/activities?userId='+userId+'&perPage=60')
     .then(function(r){ return r.json(); })
     .then(function(d){
       if(!d.activities) throw new Error('Nessuna attività');
@@ -129,10 +129,9 @@ $('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
       var newActs=d.activities.filter(function(a){ return !existingIds.includes(a.stravaId); });
       newActs.forEach(function(a){
         a.id = Date.now()+Math.random();
-        // Normalize Strava fields to app log format
-        if(!a.tipo && a.titolo) a.tipo = a.titolo;
-        if(!a.tipo && a.sport) a.tipo = a.sport;
-        if(!a.km && a.distanza) a.km = a.distanza;
+        a.tipo   = a.titolo || a.sport || 'Allenamento';
+        a.km     = a.distanza ? parseFloat(a.distanza) : (a.km||null);
+        a.fonte  = 'strava';
         existing.unshift(a);
       });
       saveLogs(existing); renderLogs(); renderHome(); drawCharts();
@@ -445,6 +444,23 @@ function renderHome(){
       _ns.appendChild(nx);
     });
   }
+  // Discipline triathlon — km questa settimana
+  var _now = new Date(); var _mon = new Date(_now); _mon.setDate(_now.getDate()-((_now.getDay()+6)%7));
+  var _weekStart = _mon.toISOString().split('T')[0];
+  var _weekLogs = _logs.filter(function(l){ return l.data >= _weekStart; });
+  function _distForSport(keywords){
+    return _weekLogs.filter(function(l){
+      var s=(l.sport||l.tipo||l.titolo||'').toLowerCase();
+      return keywords.some(function(k){ return s.includes(k); });
+    }).reduce(function(sum,l){ return sum+(parseFloat(l.km)||0); },0);
+  }
+  var _swimKm = _distForSport(['swim','nuoto','nuo']);
+  var _bikeKm = _distForSport(['ride','cycling','bici','ciclismo','bike']);
+  var _runKm  = _distForSport(['run','corsa','running','trail']);
+  if($('disc-swim-km')) $('disc-swim-km').textContent = _swimKm>0?_swimKm.toFixed(1):'—';
+  if($('disc-bike-km')) $('disc-bike-km').textContent = _bikeKm>0?_bikeKm.toFixed(1):'—';
+  if($('disc-run-km'))  $('disc-run-km').textContent  = _runKm>0?_runKm.toFixed(1):'—';
+
   // Coach report card
   var _lr=null; try{_lr=JSON.parse(localStorage.getItem('lastCoachReport')||'null');}catch(e){}
   var _rc=$('coach-report-card');
@@ -557,7 +573,7 @@ function deleteLog(id){ saveLogs(getLogs().filter(function(l){ return l.id!==id;
 function renderLogs(){
   var logs=getLogs(); $('logCount').textContent=logs.length+' allenament'+(logs.length===1?'o':'i');
   var el=$('logList'); if(!logs.length){ el.innerHTML='<p style="font-size:.74rem;color:var(--t2)">Nessun allenamento.</p>'; return; }
-  var html=''; logs.slice(0,25).forEach(function(l){ html+='<div class="rsep"><div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:.78rem;font-weight:600">'+l.tipo+'</span><span style="font-size:.62rem;color:var(--t2)">'+l.data+'</span>'+((l.fonte==='strava'||l.source==='strava')?'<span class="badge b-orange">Strava</span>':'')+'</div><button class="btn-del ldel" data-lid="'+l.id+'" style="font-size:1.1rem">×</button></div><div class="log-stats">'+(l.km?'<div class="log-stat"><strong>'+l.km+' km</strong><span>Dist.</span></div>':'')+(l.durata?'<div class="log-stat"><strong>'+l.durata+'</strong><span>Durata</span></div>':'')+(l.fc?'<div class="log-stat"><strong>'+l.fc+'</strong><span>FC</span></div>':'')+(l.tss?'<div class="log-stat"><strong>'+l.tss+'</strong><span>TSS</span></div>':'')+(l.passo?'<div class="log-stat"><strong>'+l.passo+'/km</strong><span>Passo</span></div>':'')+(l.d?'<div class="log-stat"><strong>'+l.d+'m</strong><span>D+</span></div>':'')+(l.power?'<div class="log-stat"><strong>'+l.power+'W</strong><span>Pot.</span></div>':'')+'</div>'+(l.note?'<div class="log-note">'+l.note+'</div>':'')+(l.feedback?'<div class="log-fb"><div class="log-fb-lbl">Feedback coach</div>'+l.feedback+'</div>':'')+'</div>'; });
+  var html=''; logs.forEach(function(l){ html+='<div class="rsep"><div style="display:flex;justify-content:space-between;align-items:center"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:.78rem;font-weight:600">'+(l.tipo||l.titolo||l.sport||'Allenamento')+'</span><span style="font-size:.62rem;color:var(--t2)">'+l.data+'</span>'+((l.fonte==='strava'||l.source==='strava')?'<span class="badge b-orange">Strava</span>':'')+'</div><button class="btn-del ldel" data-lid="'+l.id+'" style="font-size:1.1rem">×</button></div><div class="log-stats">'+(l.km||l.distanza?'<div class="log-stat"><strong>'+(l.km?l.km+' km':l.distanza)+'</strong><span>Dist.</span></div>':'')+(l.durata?'<div class="log-stat"><strong>'+l.durata+'</strong><span>Durata</span></div>':'')+(l.fc?'<div class="log-stat"><strong>'+l.fc+'</strong><span>FC</span></div>':'')+(l.tss?'<div class="log-stat"><strong>'+l.tss+'</strong><span>TSS</span></div>':'')+(l.passo?'<div class="log-stat"><strong>'+l.passo+'/km</strong><span>Passo</span></div>':'')+(l.d?'<div class="log-stat"><strong>'+l.d+'m</strong><span>D+</span></div>':'')+(l.power?'<div class="log-stat"><strong>'+l.power+'W</strong><span>Pot.</span></div>':'')+'</div>'+(l.note?'<div class="log-note">'+l.note+'</div>':'')+(l.feedback?'<div class="log-fb"><div class="log-fb-lbl">Feedback coach</div>'+l.feedback+'</div>':'')+'</div>'; });
   el.innerHTML=html; el.querySelectorAll('.ldel').forEach(function(b){ b.onclick=function(){ deleteLog(+this.dataset.lid); }; });
 }
 renderLogs();

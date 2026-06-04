@@ -6,6 +6,9 @@
   --t0:#fff;--t1:rgba(255,255,255,.72);--t2:rgba(255,255,255,.35);--t3:rgba(255,255,255,.14);--t4:rgba(255,255,255,.05);
   --acc:#1e3a8a;--acc-l:#3b82f6;--acc-ll:#93c5fd;--acc2:rgba(30,58,138,.14);--acc3:rgba(59,130,246,.07);
   --gn:#00d68f;--gn2:rgba(0,214,143,.1);
+  --swim:#06b6d4;--swim2:rgba(6,182,212,.12);
+  --bike:#f59e0b;--bike2:rgba(245,158,11,.12);
+  --run:#10b981;--run2:rgba(16,185,129,.12);
   --rd:#ff3b5c;--rd2:rgba(255,59,92,.1);
   --am:#f59e0b;--am2:rgba(245,158,11,.1);
   --pu:#6d28d9;--strava:#fc4c02;
@@ -325,3 +328,14 @@ canvas{display:block;width:100%}
 #pmc-help-box{background:var(--s2)!important;border:1px solid var(--line2)!important;box-shadow:0 9px 26px rgba(0,0,0,.7)!important}
 input[type="checkbox"]{width:auto;accent-color:var(--acc-l)}
 input[type="date"],input[type="number"]{font-family:var(--mono);font-size:.75rem}
+
+.disc-strip{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:8px}
+.disc-card-tri{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;position:relative;overflow:hidden}
+.disc-card-tri::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.disc-card-tri.swim::before{background:var(--swim)}
+.disc-card-tri.bike::before{background:var(--bike)}
+.disc-card-tri.run::before{background:var(--run)}
+.disc-icon{font-size:1.1rem;margin-bottom:6px}
+.disc-name{font-size:.58rem;color:var(--t2);text-transform:uppercase;letter-spacing:.8px;font-weight:600;margin-bottom:6px}
+.disc-val{font-size:1.3rem;font-weight:300;font-family:var(--mono);letter-spacing:-1px;line-height:1}
+.disc-sub{font-size:.6rem;color:var(--t2);margin-top:3px}
