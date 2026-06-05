@@ -1,4 +1,3 @@
-
 (function(){
 'use strict';
 
@@ -252,56 +251,62 @@ function callAI(messages,system,maxTok){
   var apiKey=localStorage.getItem('aiKey')||'';
   var model=localStorage.getItem('aiModel')||'';
 
-  // ── Anthropic via server proxy (preferred) ──
-  if(provider==='anthropic'&&serverUrl){
-    return fetch(serverUrl+'/api/ai',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:model||'claude-sonnet-4-20250514',max_tokens:maxTok,system:system,messages:messages})
-    }).then(function(r){ return r.json(); })
-      .then(function(d){ if(d.error) throw new Error(d.error.message||d.error); return (d.content||[]).map(function(b){ return b.text||''; }).join('')||''; });
-  }
-
-  // ── Anthropic diretto (richiede API key) ──
+  // Anthropic — usa proxy server se disponibile, altrimenti diretto
   if(provider==='anthropic'){
-    if(!apiKey) return Promise.reject(new Error('Imposta la Anthropic API key nelle Impostazioni'));
+    if(serverUrl){
+      return fetch(serverUrl+'/api/ai',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({model:model||'claude-sonnet-4-20250514',max_tokens:maxTok,system:system,messages:messages})
+      })
+      .then(function(r){
+        if(!r.ok) throw new Error('Errore server '+r.status+'. Verifica ANTHROPIC_API_KEY nelle env Vercel.');
+        return r.json();
+      })
+      .then(function(d){
+        if(d.error) throw new Error(typeof d.error==='object'?d.error.message:d.error);
+        return (d.content||[]).map(function(b){return b.text||'';}).join('')||'';
+      });
+    }
+    if(!apiKey) return Promise.reject(new Error('Nessun server configurato e nessuna API key. Vai su Impostazioni → Server URL oppure inserisci la tua Anthropic API key.'));
     return fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
       body:JSON.stringify({model:model||'claude-sonnet-4-20250514',max_tokens:maxTok,system:system,messages:messages})
-    }).then(function(r){ return r.json(); })
-      .then(function(d){ if(d.error) throw new Error(d.error.message); return (d.content||[]).map(function(b){ return b.text||''; }).join('')||''; });
+    }).then(function(r){return r.json();})
+      .then(function(d){if(d.error) throw new Error(d.error.message||JSON.stringify(d.error)); return (d.content||[]).map(function(b){return b.text||'';}).join('');});
   }
 
-  // ── OpenAI ──
+  // OpenAI
   if(provider==='openai'){
-    if(!apiKey) return Promise.reject(new Error('Imposta la OpenAI API key nelle Impostazioni'));
-    var oaiMessages=[{role:'system',content:system}].concat(messages);
+    if(!apiKey) return Promise.reject(new Error('Inserisci la OpenAI API key nelle Impostazioni'));
     return fetch('https://api.openai.com/v1/chat/completions',{
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
-      body:JSON.stringify({model:model||'gpt-4o',max_tokens:maxTok,messages:oaiMessages})
-    }).then(function(r){ return r.json(); })
-      .then(function(d){ if(d.error) throw new Error(d.error.message); return d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content||''; });
+      body:JSON.stringify({model:model||'gpt-4o',max_tokens:maxTok,messages:[{role:'system',content:system||''}].concat(messages)})
+    }).then(function(r){return r.json();})
+      .then(function(d){if(d.error) throw new Error(d.error.message); return (d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content)||'';});
   }
 
-  // ── Gemini ──
+  // Gemini
   if(provider==='gemini'){
-    if(!apiKey) return Promise.reject(new Error('Imposta la Google API key nelle Impostazioni'));
-    var gemModel=model||'gemini-1.5-flash';
-    var gemContents=messages.map(function(m){ return {role:m.role==='assistant'?'model':m.role,parts:[{text:m.content}]}; });
-    if(system) gemContents.unshift({role:'user',parts:[{text:system}]});
-    return fetch('https://generativelanguage.googleapis.com/v1beta/models/'+gemModel+':generateContent?key='+apiKey,{
+    if(!apiKey) return Promise.reject(new Error('Inserisci la Google API key nelle Impostazioni'));
+    var gm=model||'gemini-1.5-flash';
+    var parts=[];
+    if(system) parts.push({role:'user',parts:[{text:'SYSTEM: '+system}]},{role:'model',parts:[{text:'OK, capito.'}]});
+    messages.forEach(function(m){parts.push({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]});});
+    return fetch('https://generativelanguage.googleapis.com/v1beta/models/'+gm+':generateContent?key='+apiKey,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:gemContents,generationConfig:{maxOutputTokens:maxTok}})
-    }).then(function(r){ return r.json(); })
+      body:JSON.stringify({contents:parts,generationConfig:{maxOutputTokens:maxTok}})
+    }).then(function(r){return r.json();})
       .then(function(d){
-        if(d.error) throw new Error(d.error.message);
-        return d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts&&d.candidates[0].content.parts[0]&&d.candidates[0].content.parts[0].text||'';
+        if(d.error) throw new Error(d.error.message||JSON.stringify(d.error));
+        try{ return d.candidates[0].content.parts[0].text||''; }catch(e){ return ''; }
       });
   }
 
-  return Promise.reject(new Error('Provider AI non configurato'));
+  return Promise.reject(new Error('Provider non riconosciuto: '+provider));
 }
 
 // ── System prompt ─────────────────────────────
@@ -430,9 +435,8 @@ function renderHome(){
   var _plan = null; try{ _plan = JSON.parse(localStorage.getItem('currentPlan')||'null'); }catch(e){}
   var _todayIdx = -1;
   if(_plan && _plan.length){ // Timezone-safe: use local date string to get day
-  var _today = new Date(); var _dow = _today.getDay(); // 0=Sun,1=Mon...
-  var _monIdx = (_dow+6)%7; // convert to Mon=0 index
-  _todayIdx = _monIdx < _plan.length ? _monIdx : -1; }
+  var _today = new Date(); var _dow = (new Date().getDay()+6)%7; // Mon=0
+  _todayIdx = _dow < _plan.length ? _dow : -1; }
   var _td = (_todayIdx>=0 && _plan && _plan[_todayIdx]) ? _plan[_todayIdx] : null;
   if($('th-tss-badge')) $('th-tss-badge').textContent = _td && _td.tss>0 ? 'TSS '+_td.tss : 'Riposo';
   if($('th-title')) $('th-title').textContent = _td && _td.tss>0 ? (_td.titolo||'Allenamento') : (_plan?'Giorno di riposo':'Nessun piano attivo');
@@ -476,7 +480,9 @@ function renderHome(){
   }
   // Week bar
   var _DAYS=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
-  var _todayDow=(new Date().getDay()+6)%7; // Mon=0,Tue=1...Sun=6
+  // Timezone-safe local day: format local date and extract weekday
+  var _nowLocal=new Date(); 
+  var _todayDow=(function(d){ return (d.getDay()+6)%7; })(_nowLocal); // Mon=0
   var _grid=$('week-days-grid');
   if(_grid){
     _grid.innerHTML='';
@@ -673,7 +679,7 @@ function renderLogs(filterArg){
     return;
   }
 
-  var sportIcons={'run':'🏃','bike':'🚴','swim':'🏊','other':'💪'};
+  var sportIcons={'run':'<svg width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'1.8\' stroke-linecap=\'round\'><circle cx=\'12\' cy=\'5\' r=\'2\'/><path d=\'M12 7v6l3 4M12 13l-3 4M9 9l-3 1M15 9l3 1\'/></svg>','bike':'<svg width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'1.8\'><circle cx=\'6\' cy=\'15\' r=\'4\'/><circle cx=\'18\' cy=\'15\' r=\'4\'/><path d=\'M6 15l3-6h6l3 6M15 9l-3-4\'/></svg>','swim':'<svg width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'1.8\'><path d=\'M2 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0M7 7l5-4 5 4\'/></svg>','other':'<svg width=\'14\' height=\'14\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'1.8\'><circle cx=\'12\' cy=\'12\' r=\'9\'/><path d=\'M12 8v4l3 2\'/></svg>'};
   var sportColors={'run':'var(--run)','bike':'var(--bike)','swim':'var(--swim)','other':'var(--acc-l)'};
   var sportBg={'run':'var(--run2)','bike':'var(--bike2)','swim':'var(--swim2)','other':'var(--acc2)'};
   var sportLabels={'run':'Corsa','bike':'Bici','swim':'Nuoto','other':'Allenamento'};

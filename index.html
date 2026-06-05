@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<button id="mob-menu-btn" style="display:none;position:fixed;top:14px;left:14px;z-index:200;background:var(--s1);border:1px solid var(--line2);border-radius:8px;width:38px;height:38px;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:5px">
+<button id="mob-menu-btn" class="mob-btn" style="position:fixed;top:14px;left:14px;z-index:200;background:var(--s1);border:1px solid var(--line2);border-radius:8px;width:38px;height:38px;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:5px">
   <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px"></span>
   <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px"></span>
   <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px"></span>
@@ -90,17 +90,17 @@
     <!-- Discipline strip -->
     <div class="disc-strip">
       <div class="disc-card-tri swim">
-        <div class="disc-name">🏊 Nuoto</div>
+        <div class="disc-name">Nuoto</div>
         <div class="disc-val" id="disc-swim-km">—</div>
         <div class="disc-sub">km questa sett.</div>
       </div>
       <div class="disc-card-tri bike">
-        <div class="disc-name">🚴 Bici</div>
+        <div class="disc-name">Bici</div>
         <div class="disc-val" id="disc-bike-km">—</div>
         <div class="disc-sub">km questa sett.</div>
       </div>
       <div class="disc-card-tri run">
-        <div class="disc-name">🏃 Corsa</div>
+        <div class="disc-name">Corsa</div>
         <div class="disc-val" id="disc-run-km">—</div>
         <div class="disc-sub">km questa sett.</div>
       </div>
@@ -246,9 +246,9 @@
         </div>
         <div style="display:flex;gap:5px;flex-wrap:wrap" id="log-filter-btns">
           <button class="lf-btn active" data-filter="all">Tutti</button>
-          <button class="lf-btn" data-filter="run">🏃 Corsa</button>
-          <button class="lf-btn" data-filter="bike">🚴 Bici</button>
-          <button class="lf-btn" data-filter="swim">🏊 Nuoto</button>
+          <button class="lf-btn" data-filter="run">Corsa</button>
+          <button class="lf-btn" data-filter="bike">Bici</button>
+          <button class="lf-btn" data-filter="swim">Nuoto</button>
           <button class="lf-btn" data-filter="other">Altro</button>
         </div>
       </div>
