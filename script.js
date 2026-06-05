@@ -1,4 +1,3 @@
-
 (function(){
 'use strict';
 
@@ -304,6 +303,24 @@ function callAI(messages,system,maxTok){
       .then(function(d){
         if(d.error) throw new Error('Gemini: '+(d.error.message||d.error.status||JSON.stringify(d.error)));
         try{ return d.candidates[0].content.parts[0].text||''; }catch(e){ return ''; }
+      });
+  }
+
+  // Groq — gratis su console.groq.com
+  if(provider==='groq'){
+    if(!apiKey) return Promise.reject(new Error('Inserisci la Groq API key — gratis su console.groq.com'));
+    return fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+      body:JSON.stringify({
+        model:model||'llama-3.3-70b-versatile',
+        max_tokens:maxTok,
+        messages:[{role:'system',content:system||''}].concat(messages)
+      })
+    }).then(function(r){return r.json();})
+      .then(function(d){
+        if(d.error) throw new Error('Groq: '+(d.error.message||JSON.stringify(d.error)));
+        return (d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content)||'';
       });
   }
 
