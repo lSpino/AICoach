@@ -1,3 +1,4 @@
+
 (function(){
 'use strict';
 
@@ -274,7 +275,7 @@ function callAI(messages,system,maxTok){
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
       body:JSON.stringify({model:model||'claude-sonnet-4-20250514',max_tokens:maxTok,system:system,messages:messages})
     }).then(function(r){return r.json();})
-      .then(function(d){if(d.error) throw new Error(d.error.message||JSON.stringify(d.error)); return (d.content||[]).map(function(b){return b.text||'';}).join('');});
+      .then(function(d){if(d.error) throw new Error('Gemini: '+(d.error.message||d.error.status||JSON.stringify(d.error))); return (d.content||[]).map(function(b){return b.text||'';}).join('');});
   }
 
   // OpenAI
@@ -291,7 +292,7 @@ function callAI(messages,system,maxTok){
   // Gemini
   if(provider==='gemini'){
     if(!apiKey) return Promise.reject(new Error('Inserisci la Google API key nelle Impostazioni'));
-    var gm=model||'gemini-1.5-flash';
+    var gm=model||'gemini-2.0-flash';
     var parts=[];
     if(system) parts.push({role:'user',parts:[{text:'SYSTEM: '+system}]},{role:'model',parts:[{text:'OK, capito.'}]});
     messages.forEach(function(m){parts.push({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]});});
@@ -301,7 +302,7 @@ function callAI(messages,system,maxTok){
       body:JSON.stringify({contents:parts,generationConfig:{maxOutputTokens:maxTok}})
     }).then(function(r){return r.json();})
       .then(function(d){
-        if(d.error) throw new Error(d.error.message||JSON.stringify(d.error));
+        if(d.error) throw new Error('Gemini: '+(d.error.message||d.error.status||JSON.stringify(d.error)));
         try{ return d.candidates[0].content.parts[0].text||''; }catch(e){ return ''; }
       });
   }
