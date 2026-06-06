@@ -165,6 +165,14 @@ $('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
         existing.unshift(a);
       });
       saveLogs(existing); renderLogs(); renderHome(); drawCharts();
+      // Auto-analyze newest activity
+      if(newActs.length>0){
+        var newest=newActs[0];
+        setTimeout(function(){
+          showCoachReport(newest);
+          toast('Coach sta analizzando: '+newest.tipo);
+        },1500);
+      }
       $('strava-sync-status').textContent='Sincronizzati '+newActs.length+' nuovi allenamenti.';
       toast('Sincronizzati '+newActs.length+' allenamenti da Strava');
     }).catch(function(e){ $('strava-sync-status').textContent='Errore sincronizzazione.'; console.error(e); });
@@ -484,6 +492,13 @@ function renderHome(){
   var _logs=[]; try{_logs=JSON.parse(localStorage.getItem('logs')||'[]');}catch(e){}
   var _now7=Date.now()-7*86400000;
   var _tss7=_logs.filter(function(l){return new Date(l.data).getTime()>_now7;}).reduce(function(s,l){return s+(l.tss||0);},0);
+  // Week activity count
+  var _mon2=new Date(); _mon2.setDate(_mon2.getDate()-_todayDow);
+  var _monStr=_mon2.toISOString().split('T')[0];
+  var _weekActs=_logs.filter(function(l){return l.data>=_monStr&&l.tss>0;});
+  if($('kpi-week-count')) $('kpi-week-count').textContent=_weekActs.length||'—';
+  if($('kpi-week-sub')) $('kpi-week-sub').textContent=_weekActs.length===1?'allenamento':_weekActs.length>1?'allenamenti':'nessuno questa sett.';
+  if($('kpi-week-bar')) $('kpi-week-bar').style.width=Math.min(_weekActs.length/7*100,100)+'%';
   if($('carico-val')) $('carico-val').textContent = _tss7||'—';
   if($('carico-bar')) $('carico-bar').style.width = Math.min(_tss7/5,100)+'%';
   if($('carico-sub')) $('carico-sub').textContent = _tss7 ? _tss7+' TSS questa settimana' : 'Nessun dato';
@@ -509,18 +524,33 @@ function renderHome(){
     var _totalTss=_planRef.reduce(function(s,d){return s+(d.tss||0);},0);
     if($('week-tss-lbl')) $('week-tss-lbl').textContent='Questa settimana · '+_doneTss+' / '+_totalTss+' TSS';
     _DAYS.forEach(function(name,di){
-      var day=_planRef[di]||{tss:0};
       var dc=document.createElement('div'); dc.className='dc';
       var dn=document.createElement('div'); dn.className='dn'; dn.textContent=name; dc.appendChild(dn);
       var dd=document.createElement('div');
-      var isRest=!day.tss||day.tss===0;
-      if(di<_todayDow){ dd.className='dd done'; dd.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--gn)" stroke-width="2.5" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg>'; }
-      else if(di===_todayDow){ dd.className='dd today'; dd.innerHTML='<svg width="8" height="8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="var(--acc-l)"/></svg>'; }
-      else if(isRest){ dd.className='dd rest'; }
-      else { dd.className='dd future'; }
+      // Check real logs for this day
+      var now=new Date();
+      var monday=new Date(now); monday.setDate(now.getDate()-_todayDow);
+      var dayDate=new Date(monday); dayDate.setDate(monday.getDate()+di);
+      var dayStr=dayDate.toISOString().split('T')[0];
+      var dayLogs=_logs.filter(function(l){ return l.data===dayStr&&l.tss>0; });
+      var hasTrained=dayLogs.length>0;
+      var dayTss=dayLogs.reduce(function(s,l){return s+(l.tss||0);},0);
+      var planDay=_planRef[di]||{tss:0};
+      var isRestDay=!planDay.tss||planDay.tss===0;
+      if(di<_todayDow){
+        if(hasTrained){ dd.className='dd done'; dd.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--gn)" stroke-width="2.5" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg>'; }
+        else if(isRestDay){ dd.className='dd rest'; }
+        else{ dd.className='dd future'; dd.style.opacity='.4'; }
+      } else if(di===_todayDow){
+        dd.className='dd today'; dd.innerHTML='<svg width="8" height="8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="var(--acc-l)"/></svg>';
+      } else if(isRestDay){
+        dd.className='dd rest';
+      } else {
+        dd.className='dd future';
+      }
       dc.appendChild(dd);
       var dt=document.createElement('div'); dt.className='dtss';
-      dt.textContent=day.tss&&day.tss>0?String(day.tss):'—';
+      dt.textContent=dayTss>0?String(dayTss):(planDay.tss>0?String(planDay.tss):'—');
       if(di===_todayDow) dt.style.color='var(--acc-l)';
       dc.appendChild(dt);
       _grid.appendChild(dc);
@@ -541,22 +571,46 @@ function renderHome(){
       _ns.appendChild(nx);
     });
   }
-  // Discipline triathlon — km questa settimana
-  var _now = new Date(); var _mon = new Date(_now); _mon.setDate(_now.getDate()-((_now.getDay()+6)%7));
-  var _weekStart = _mon.toISOString().split('T')[0];
-  var _weekLogs = _logs.filter(function(l){ return l.data >= _weekStart; });
-  function _distForSport(keywords){
+  // Discipline strip — from profile
+  var _nowW=new Date(); var _monW=new Date(_nowW); _monW.setDate(_nowW.getDate()-_todayDow);
+  var _weekStart=_monW.toISOString().split('T')[0];
+  var _weekLogs=_logs.filter(function(l){return l.data>=_weekStart;});
+  function _distForSport(kws){
     return _weekLogs.filter(function(l){
       var s=(l.sport||l.tipo||l.titolo||'').toLowerCase();
-      return keywords.some(function(k){ return s.includes(k); });
-    }).reduce(function(sum,l){ return sum+(parseFloat(l.km)||0); },0);
+      return kws.some(function(k){return s.indexOf(k)>=0;});
+    }).reduce(function(sum,l){return sum+(parseFloat(l.km)||0);},0);
   }
-  var _swimKm = _distForSport(['swim','nuoto','nuo']);
-  var _bikeKm = _distForSport(['ride','cycling','bici','ciclismo','bike']);
-  var _runKm  = _distForSport(['run','corsa','running','trail']);
-  if($('disc-swim-km')) $('disc-swim-km').textContent = _swimKm>0?_swimKm.toFixed(1):'—';
-  if($('disc-bike-km')) $('disc-bike-km').textContent = _bikeKm>0?_bikeKm.toFixed(1):'—';
-  if($('disc-run-km'))  $('disc-run-km').textContent  = _runKm>0?_runKm.toFixed(1):'—';
+  // Build disc strip dynamically from profile
+  var _profDiscs=(getProfile().disciplines||[]).filter(function(d){return d.inc!==false;});
+  var _discStrip=$('disc-strip-dyn');
+  if(_discStrip&&_profDiscs.length>0){
+    _discStrip.innerHTML='';
+    var _catMap={
+      'Corsa':['run','corsa','trail','jogg'],'Bici':['ride','bici','cycl','bike'],'Nuoto':['swim','nuoto'],
+      'Ciclismo':['ride','bici','cycl','bike'],'Triathlon':['tri'],'Palestra':['gym','palest','forza']
+    };
+    var _colMap={'Corsa':'run','Bici':'bike','Nuoto':'swim','Ciclismo':'bike','Triathlon':'acc-l','Palestra':'am'};
+    _profDiscs.slice(0,3).forEach(function(d){
+      var kws=_catMap[d.sport]||[d.sport.toLowerCase()];
+      var km=_distForSport(kws);
+      var col=_colMap[d.sport]||'acc-l';
+      var div=document.createElement('div');
+      div.className='disc-card-tri';
+      div.style.borderTopColor='var(--'+col+')';
+      div.innerHTML='<div class="disc-name">'+d.sport+'</div>'+
+        '<div class="disc-val" style="color:var(--'+col+')">'+(km>0?km.toFixed(1):'—')+'</div>'+
+        '<div class="disc-sub">km questa sett.</div>';
+      _discStrip.appendChild(div);
+    });
+  } else if(_discStrip){
+    // Default triathlon
+    var _sk=_distForSport(['swim','nuoto']),_bk=_distForSport(['ride','bici','cycl']),_rk=_distForSport(['run','corsa','trail']);
+    _discStrip.innerHTML=
+      '<div class="disc-card-tri" style="border-top-color:var(--swim)"><div class="disc-name">Nuoto</div><div class="disc-val" style="color:var(--swim)">'+(_sk>0?_sk.toFixed(1):'—')+'</div><div class="disc-sub">km questa sett.</div></div>'+
+      '<div class="disc-card-tri" style="border-top-color:var(--bike)"><div class="disc-name">Bici</div><div class="disc-val" style="color:var(--bike)">'+(_bk>0?_bk.toFixed(1):'—')+'</div><div class="disc-sub">km questa sett.</div></div>'+
+      '<div class="disc-card-tri" style="border-top-color:var(--run)"><div class="disc-name">Corsa</div><div class="disc-val" style="color:var(--run)">'+(_rk>0?_rk.toFixed(1):'—')+'</div><div class="disc-sub">km questa sett.</div></div>';
+  }
 
   // Coach report card
   var _lr=null; try{_lr=JSON.parse(localStorage.getItem('lastCoachReport')||'null');}catch(e){}
@@ -608,7 +662,7 @@ function renderPlanUI(days){
     var pillsHtml='';
     if(!isRest&&blocchi.length){ pillsHtml='<div class="wf">'; blocchi.forEach(function(b,bi){ pillsHtml+='<span class="wf-pill '+pillClass(b.tipo)+'">'+b.testo+'</span>'; if(bi<blocchi.length-1) pillsHtml+='<span class="wf-plus">+</span>'; }); pillsHtml+='</div>'; }
     var descHtml=(!isRest&&d.descrizione)?'<div class="wf-desc">'+d.descrizione+'</div>':'';
-    var zoneTags=''; if(d.zone&&d.zone.length) d.zone.forEach(function(z){ zoneTags+='<span class="pdc-tag '+zoneClass(z)+'">'+z+'</span>'; });
+    var zoneTags=''; var _zones=d.zone?(Array.isArray(d.zone)?d.zone:[d.zone]):[]; _zones.forEach(function(z){ zoneTags+='<span class="pdc-tag '+zoneClass(z)+'">'+z+'</span>'; });
     var objTag=d.obiettivo?'<span class="pdc-tag obj-tag">'+d.obiettivo+'</span>':'';
     var paceHtml='';
     if(!isRest&&(d.disciplina==='Corsa'||d.disciplina==='Trail Running')){ var p=getProfile(); if(p.ritmo){ var pts=p.ritmo.split(':'),sogSec=parseInt(pts[0]||0)*60+parseInt(pts[1]||0); function fmtP(s){ return Math.floor(s/60)+':'+(s%60<10?'0':'')+s%60+'/km'; } var rows=[['Riscaldamento','Z1',Math.round(sogSec*1.18)],['Aerobica base','Z2',Math.round(sogSec*1.1)],['Ritmo maratona','Z2-Z3',Math.round(sogSec*1.04)],['Ritmo mezza','Z3',Math.round(sogSec*0.97)],['Soglia','Z3-Z4',sogSec],['Ripetute 1K','Z4',Math.round(sogSec*0.94)],['Ripetute 400m','Z5',Math.round(sogSec*0.89)]]; paceHtml='<details style="margin-top:.75rem"><summary style="font-size:.65rem;color:var(--t2);cursor:pointer;user-select:none;list-style:none">▸ Tabella ritmi</summary><table class="pace-table"><thead><tr><th>Tipo</th><th>Zona</th><th>Ritmo</th></tr></thead><tbody>'+rows.map(function(r){ return '<tr><td>'+r[0]+'</td><td><span class="badge b-blue">'+r[1]+'</span></td><td><strong>'+fmtP(r[2])+'</strong></td></tr>'; }).join('')+'</tbody></table></details>'; } }
@@ -816,11 +870,25 @@ window.onresize=function(){ if(document.querySelector('#tab-home.active')) drawC
 
 
 function getDefaultPrompt(){
-  var p=getProfile(),goals=getGoals();
-  var incl=(p.disciplines||[]).filter(function(d){return d.inc!==false;}).map(function(d){return d.sport+' '+d.ore+'h/sett';}).join(', ')||'Nessuna';
-  var excl=(p.disciplines||[]).filter(function(d){return d.inc===false;}).map(function(d){return d.sport;}).join(', ')||'Nessuna';
+  var p=getProfile(), goals=getGoals();
+  var DAYNAMES=['Lunedi','Martedi','Mercoledi','Giovedi','Venerdi','Sabato','Domenica'];
+  var discs=p.disciplines||[];
+  var inclStr=discs.filter(function(d){return d.inc!==false;}).map(function(d){
+    var days=d.giorni&&d.giorni.length?d.giorni.map(function(i){return DAYNAMES[i];}).join('/'):'-';
+    return d.sport+' '+d.ore+'h/sett giorni:'+days;
+  }).join(' | ')||'Nessuna';
+  var exclStr=discs.filter(function(d){return d.inc===false;}).map(function(d){return d.sport;}).join(', ')||'Nessuna';
   var goalStr=goals.length?goals.map(function(g){return '['+g.prio+'] '+g.nome+' '+g.data;}).join(', '):'Nessuno';
-  return 'Genera un piano di allenamento settimanale (7 giorni lun-dom).\nOBIETTIVI: '+goalStr+'\nDISCIPLINE INCLUSE: '+incl+'\nDISCIPLINE ESCLUSE: '+excl+'\nPARAMETRI: ritmo '+(p.ritmo||'4:30')+'/km FTP '+(p.ftp||'220')+'W FC '+(p.fcsoglia||'170')+'bpm\nREGOLA: sessioni SOLO nei giorni delle discipline incluse. Altri = Riposo.\nRispondi SOLO JSON grezzo [ ... ] 7 oggetti: {titolo,disciplina,tipo,distanza,durata,tss,zone,obiettivo,descrizione,blocchi:[{tipo,testo}]}\nTipi blocco: warmup|main|rep|cooldown. Riposo: tss=0,blocchi=[],titolo="Riposo"';
+  var params='ritmo soglia '+(p.ritmo||'4:30')+'/km | FTP '+(p.ftp||'220')+'W | FC soglia '+(p.fcsoglia||'170')+'bpm';
+  return 'Genera un piano settimanale (7 giorni, lun-dom) basato esattamente su questi dati.\n\n'+
+    'OBIETTIVI: '+goalStr+'\n\n'+
+    'DISCIPLINE CON GIORNI SPECIFICI:\n'+inclStr+'\n\n'+
+    'DISCIPLINE ESCLUSE (quei giorni = Riposo):\n'+exclStr+'\n\n'+
+    'PARAMETRI ATLETA: '+params+'\n\n'+
+    'REGOLA ASSOLUTA: allena SOLO nei giorni indicati per ogni disciplina. Tutti gli altri giorni = Riposo obbligatorio.\n\n'+
+    'Rispondi SOLO con JSON grezzo valido. Niente testo, niente markdown. Formato esatto:\n'+
+    '[{"titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n\n'+
+    'Riposo: {"titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
 }
 
 function showCoachReport(session){
