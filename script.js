@@ -493,7 +493,8 @@ function renderHome(){
   var _now7=Date.now()-7*86400000;
   var _tss7=_logs.filter(function(l){return new Date(l.data).getTime()>_now7;}).reduce(function(s,l){return s+(l.tss||0);},0);
   // Week activity count
-  var _mon2=new Date(); _mon2.setDate(_mon2.getDate()-_todayDow);
+  var _todayDowEarly=(new Date().getDay()+6)%7;
+  var _mon2=new Date(); _mon2.setDate(_mon2.getDate()-_todayDowEarly);
   var _monStr=_mon2.toISOString().split('T')[0];
   var _weekActs=_logs.filter(function(l){return l.data>=_monStr&&l.tss>0;});
   if($('kpi-week-count')) $('kpi-week-count').textContent=_weekActs.length||'—';
@@ -507,8 +508,9 @@ function renderHome(){
   var _pg=_goals.filter(function(g){return g.prio==='A';}).sort(function(a,b){return new Date(a.data)-new Date(b.data);})[0]||_goals[0];
   if(_pg){
     var _diff=Math.round((new Date(_pg.data)-new Date())/86400000);
-    if($('goal-days-val')) $('goal-days-val').textContent=_diff>0?_diff:'Past';
-    if($('goal-days-sub')) $('goal-days-sub').textContent=_pg.nome||'—';
+    if($('goal-days-val')) $('goal-days-val').textContent=_diff>0?'-'+_diff:'+'+Math.abs(_diff);
+    if($('goal-days-val')) $('goal-days-val').style.color=_diff>14?'var(--acc-ll)':_diff>0?'var(--am)':'var(--rd)';
+    if($('goal-days-sub')) $('goal-days-sub').textContent=(_diff>0?'giorni a ':'')+(_pg.nome||'—');
     if($('goal-days-bar')) $('goal-days-bar').style.width=Math.max(0,Math.min(100,100-_diff/2))+'%';
   }
   // Week bar
@@ -572,7 +574,7 @@ function renderHome(){
     });
   }
   // Discipline strip — from profile
-  var _nowW=new Date(); var _monW=new Date(_nowW); _monW.setDate(_nowW.getDate()-_todayDow);
+  var _todayDow2=(new Date().getDay()+6)%7; var _nowW=new Date(); var _monW=new Date(_nowW); _monW.setDate(_nowW.getDate()-_todayDow2);
   var _weekStart=_monW.toISOString().split('T')[0];
   var _weekLogs=_logs.filter(function(l){return l.data>=_weekStart;});
   function _distForSport(kws){
@@ -697,7 +699,7 @@ function generatePlan(){
       renderPlanUI(days); renderHome();
       $('plan-gen-date').textContent='Generato il '+localStorage.getItem('lastPlanDate');
     })
-    .catch(function(err){ toast('Errore piano — riprova'); $('plan-empty').style.display='block'; console.error(err); })
+    .catch(function(err){ var msg=err&&err.message?err.message:String(err); toast('Errore piano: '+msg.substring(0,60)); $('plan-empty').style.display='block'; console.error('PIANO ERR:',err); })
     .finally(function(){ $('plan-banner').style.display='none'; planBusy=false; });
 }
 (function(){ var saved=null; try{ saved=JSON.parse(localStorage.getItem('lastPlanDays')||'null'); }catch(e){} if(saved&&Array.isArray(saved)&&saved.length>=7){ try{ renderPlanUI(saved); $('plan-gen-date').textContent='Piano del '+(localStorage.getItem('lastPlanDate')||''); }catch(e){ $('plan-empty').style.display='block'; } }else{ $('plan-empty').style.display='block'; } })();
