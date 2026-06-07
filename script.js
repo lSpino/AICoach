@@ -117,6 +117,7 @@ function toggleStravaDropdown(e){
   dd.style.display=open?'none':'block';
   if(!open){ setTimeout(function(){ document.addEventListener('click',function h(){ dd.style.display='none'; document.removeEventListener('click',h); }); },10); }
 }
+window.toggleStravaDropdown=toggleStravaDropdown;
 function updateStravaUI(connected, athleteName){
   var btnConn=$('btn-connect-strava');
   var chip=$('strava-chip-home');
@@ -139,10 +140,13 @@ function disconnectStrava(){
   var serverUrl=getServerUrl();
   localStorage.setItem('stravaConnected','false');
   localStorage.removeItem('stravaAthleteName');
+  var dd=$('strava-dropdown'); if(dd) dd.style.display='none';
   updateStravaUI(false,'');
   if(!serverUrl) return;
   fetch(serverUrl+'/api/strava/disconnect?userId='+getUserId(),{method:'DELETE'}).catch(function(){});
 }
+window.disconnectStrava=disconnectStrava;
+window.connectStrava=connectStrava;
 
 $('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
   var serverUrl=getServerUrl(); if(!serverUrl) return;

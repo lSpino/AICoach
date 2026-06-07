@@ -191,6 +191,7 @@ canvas{display:block;width:100%}
 
 /* HOME SPECIFIC */
 .home-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+.home-greeting{padding-left:52px}
 .home-greeting h1{font-size:1.2rem;font-weight:700;letter-spacing:-.6px;line-height:1}
 .home-greeting p{font-size:.67rem;color:var(--t2);margin-top:3px}
 .strava-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--line);background:var(--s1)}
@@ -382,8 +383,6 @@ input[type="date"],input[type="number"]{font-family:var(--mono);font-size:.75rem
   .kpi-grid{grid-template-columns:1fr 1fr}
   .nx3{grid-template-columns:1fr 1fr!important}
   .home-topbar{flex-direction:column;gap:8px;align-items:flex-start}
-  .home-greeting h1{margin-left:48px}
-  .home-greeting p{margin-left:48px}
   .modal-box{width:94vw;padding:16px}
   #coach-panel{width:calc(100vw - 20px);right:10px;left:10px}
 }
