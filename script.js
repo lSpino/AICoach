@@ -19,8 +19,10 @@ $('dateLabel').textContent=new Date().toLocaleDateString('it-IT',{weekday:'long'
 
 // ── Tabs ─────────────────────────────────────
 var TABS=['home','log','goals','plan','calc'];
+var TAB_TITLES={home:'Dashboard',log:'Allenamenti',goals:'Obiettivi',plan:'Piano',calc:'Calcolatore'};
 function showTab(id){
   TABS.forEach(function(t){ var tab=$('tab-'+t); if(tab) tab.classList.toggle('active',t===id); var nav=$('nav-'+t); if(nav) nav.classList.toggle('active',t===id); });
+  var tb=$('topbar-title'); if(tb) tb.textContent=TAB_TITLES[id]||'';
   if(id==='home'){ renderHome(); drawCharts(); }
 }
 $('nav-home').onclick=function(){ showTab('home'); };

@@ -191,7 +191,6 @@ canvas{display:block;width:100%}
 
 /* HOME SPECIFIC */
 .home-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-.home-greeting{padding-left:52px}
 .home-greeting h1{font-size:1.2rem;font-weight:700;letter-spacing:-.6px;line-height:1}
 .home-greeting p{font-size:.67rem;color:var(--t2);margin-top:3px}
 .strava-chip{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--line);background:var(--s1)}

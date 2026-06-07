@@ -9,14 +9,14 @@
 </head>
 <body>
 
-<button id="mob-menu-btn" class="mob-btn" style="position:fixed;top:14px;left:14px;z-index:200;background:var(--s1);border:1px solid var(--line2);border-radius:8px;width:38px;height:38px;align-items:center;justify-content:center;cursor:pointer;flex-direction:column;gap:5px">
-  <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px"></span>
-  <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px"></span>
-  <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px"></span>
-</button>
 <div id="mob-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:98;backdrop-filter:blur(4px)"></div>
 <aside class="sidebar">
   <div class="sb-logo">
+    <button id="mob-menu-btn" class="mob-btn" style="background:none;border:none;cursor:pointer;padding:4px;display:flex;flex-direction:column;gap:4px;flex-shrink:0" aria-label="Chiudi menu">
+      <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px;transition:all .2s"></span>
+      <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px;transition:all .2s"></span>
+      <span style="display:block;width:16px;height:1.5px;background:var(--t1);border-radius:1px;transition:all .2s"></span>
+    </button>
     <div class="sb-logo-text">Endurance</div>
   </div>
   <div class="sb-nav">
@@ -41,8 +41,15 @@
 </aside>
 
 <main class="main">
-
-  <!-- DASHBOARD -->
+  <!-- TOP BAR -->
+  <div id="topbar" style="position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:10px 20px;margin:-26px -26px 22px -26px">
+    <button id="mob-menu-btn" class="mob-btn" style="background:none;border:none;cursor:pointer;padding:6px;display:flex;flex-direction:column;gap:4px;flex-shrink:0;border-radius:6px;transition:background .12s" aria-label="Menu">
+      <span style="display:block;width:17px;height:1.5px;background:var(--t1);border-radius:1px"></span>
+      <span style="display:block;width:17px;height:1.5px;background:var(--t1);border-radius:1px"></span>
+      <span style="display:block;width:17px;height:1.5px;background:var(--t1);border-radius:1px"></span>
+    </button>
+    <span style="font-size:.8rem;font-weight:600;color:var(--t1);letter-spacing:-.3px" id="topbar-title">Dashboard</span>
+  </div>
   <div id="tab-home" class="tab active">
 
     <div class="home-topbar">
