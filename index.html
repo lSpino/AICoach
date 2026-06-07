@@ -135,16 +135,10 @@
     <div class="nx-lbl">Prossime sessioni</div>
     <div class="nx3" id="next-sessions"></div>
 
-    <div class="strava-card" id="strava-banner" style="margin-top:8px;display:none">
-      <div class="strava-info">
-        <div class="strava-logo"><svg viewBox="0 0 24 24"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg></div>
-        <div><div class="strava-name" id="strava-name">Connetti Strava</div><div class="strava-sub" id="strava-sub">Sincronizza automaticamente i tuoi allenamenti</div></div>
-      </div>
-      <div id="strava-actions"><button class="btn btn-orange" id="btn-connect-strava">Connetti</button></div>
-    </div>
-
     <!-- hidden anchors for JS compatibility -->
     <div style="display:none!important;visibility:hidden;height:0;overflow:hidden">
+      <div id="strava-name"></div><div id="strava-sub"></div><div id="strava-actions"><button id="btn-connect-strava"></button></div>
+      <div id="strava-banner"></div>
       <canvas id="barChart"></canvas><canvas id="pmcChart"></canvas>
       <div id="kpi-km"></div><div id="kpi-time"></div><div id="kpi-tss"></div><div id="kpi-fc"></div>
       <div id="inj-score"></div><div id="inj-label"></div><div id="inj-text"></div><div id="inj-bar"></div><div id="inj-badge"></div>

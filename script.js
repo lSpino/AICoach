@@ -110,25 +110,26 @@ function checkStravaStatus(){
 }
 
 function updateStravaUI(connected, athleteName){
-  var nameEl=$('strava-name'), subEl=$('strava-sub'), actEl=$('strava-actions');
   var syncBtn=$('btn-sync-strava'), syncStatus=$('strava-sync-status');
+  // Settings modal
+  var sc=$('settings-strava-connected'), sd=$('settings-strava-disconnected');
+  var sn=$('settings-strava-name');
   if(connected){
-    nameEl.textContent=athleteName+' — Connesso';
-    subEl.textContent='Sincronizzazione automatica attiva';
-    actEl.innerHTML='<button class="btn btn-ghost" id="btn-disconnect-strava" style="font-size:.68rem">Disconnetti</button>';
+    if(sc) sc.style.display='block';
+    if(sd) sd.style.display='none';
+    if(sn) sn.textContent=athleteName;
     if(syncBtn) syncBtn.style.display='block';
     if(syncStatus) syncStatus.textContent='Strava connesso. Clicca per sincronizzare gli ultimi allenamenti.';
-    var discBtn=document.getElementById('btn-disconnect-strava');
-    if(discBtn) discBtn.onclick=disconnectStrava;
   } else {
-    nameEl.textContent='Connetti Strava';
-    subEl.textContent='Sincronizza automaticamente i tuoi allenamenti';
-    actEl.innerHTML='<button class="btn btn-orange" id="btn-connect-strava">Connetti</button>';
+    if(sc) sc.style.display='none';
+    if(sd) sd.style.display='block';
     if(syncBtn) syncBtn.style.display='none';
     if(syncStatus) syncStatus.textContent='Connetti Strava per importare automaticamente i tuoi allenamenti.';
-    var connBtn=document.getElementById('btn-connect-strava');
-    if(connBtn) connBtn.onclick=connectStrava;
   }
+  // Chip in home
+  var _chip=$('strava-chip-home');
+  if(_chip) _chip.style.display=connected?'flex':'none';
+  if(connected){ var _cs=$('strava-chip-status'); if(_cs) _cs.textContent=athleteName||'connesso'; }
 }
 
 function connectStrava(){
@@ -202,6 +203,11 @@ window.addEventListener('message', function(e){
 (function(){
   var b = document.getElementById('btn-connect-strava');
   if(b && !b.onclick) b.onclick = connectStrava;
+  // Settings buttons
+  var sc = document.getElementById('settings-btn-connect');
+  if(sc) sc.onclick = connectStrava;
+  var sd = document.getElementById('settings-btn-disconnect');
+  if(sd) sd.onclick = disconnectStrava;
 })();
 })();
 
@@ -650,25 +656,38 @@ function tssHex(tss){ var m={'#00d68f':'#22d4a0','var(--acc-l)':'#5b8ef5','#f59e
 
 function renderPlanUI(days){
   var goals=getGoals(); var pgb=$('plan-goals-bar'),pgt=$('plan-goals-tags');
-  if(goals.length&&pgb&&pgt){ pgb.style.display='block'; pgt.innerHTML=goals.map(function(g){ return '<span class="badge b-blue">'+g.nome+' · '+g.data+'</span>'; }).join(''); }
-  var tot=days.reduce(function(a,d){ return a+(d.tss||0); },0); var ptot=$('plan-tss-tot'); if(ptot) ptot.textContent='TSS totale: '+tot; var ptc=$('plan-tss-card'); if(ptc) ptc.style.display='block';
-  setTimeout(function(){ drawPlanTss('planTssChart',days); },50); $('plan-empty').style.display='none';
-  var now=new Date(),off=(now.getDay()+6)%7,mon=new Date(now); mon.setDate(now.getDate()-off); mon.setHours(0,0,0,0);
+  if(goals.length&&pgb&&pgt){ pgb.style.display='block'; pgt.innerHTML=goals.map(function(g){ return '<span class="badge b-blue">'+g.nome+' \xb7 '+g.data+'</span>'; }).join(''); }
+  var tot=days.reduce(function(a,d){ return a+(d.tss||0); },0);
+  var ptot=$('plan-tss-tot'); if(ptot) ptot.textContent='TSS totale: '+tot;
+  var ptc=$('plan-tss-card'); if(ptc) ptc.style.display='block';
+  setTimeout(function(){ drawPlanTss('planTssChart',days.slice(0,7)); },50);
+  $('plan-empty').style.display='none';
+  var now=new Date();
   var maxTss=Math.max.apply(null,days.map(function(d){ return d.tss||0; }).concat([1]));
+  // Group into weeks of 7
+  var weeks=[];
+  for(var wi=0;wi<days.length;wi+=7) weeks.push(days.slice(wi,wi+7));
   var html='';
-  days.forEach(function(d,i){
-    var date=new Date(mon); date.setDate(mon.getDate()+i);
-    var isToday=date.toDateString()===now.toDateString();
-    var isRest=!d.tipo||d.tipo.toLowerCase().indexOf('riposo')>=0;
-    var tss=d.tss||0,col=tssHex(tss),blocchi=Array.isArray(d.blocchi)?d.blocchi:[];
-    var pillsHtml='';
-    if(!isRest&&blocchi.length){ pillsHtml='<div class="wf">'; blocchi.forEach(function(b,bi){ pillsHtml+='<span class="wf-pill '+pillClass(b.tipo)+'">'+b.testo+'</span>'; if(bi<blocchi.length-1) pillsHtml+='<span class="wf-plus">+</span>'; }); pillsHtml+='</div>'; }
-    var descHtml=(!isRest&&d.descrizione)?'<div class="wf-desc">'+d.descrizione+'</div>':'';
-    var zoneTags=''; var _zones=d.zone?(Array.isArray(d.zone)?d.zone:[d.zone]):[]; _zones.forEach(function(z){ zoneTags+='<span class="pdc-tag '+zoneClass(z)+'">'+z+'</span>'; });
-    var objTag=d.obiettivo?'<span class="pdc-tag obj-tag">'+d.obiettivo+'</span>':'';
-    var paceHtml='';
-    if(!isRest&&(d.disciplina==='Corsa'||d.disciplina==='Trail Running')){ var p=getProfile(); if(p.ritmo){ var pts=p.ritmo.split(':'),sogSec=parseInt(pts[0]||0)*60+parseInt(pts[1]||0); function fmtP(s){ return Math.floor(s/60)+':'+(s%60<10?'0':'')+s%60+'/km'; } var rows=[['Riscaldamento','Z1',Math.round(sogSec*1.18)],['Aerobica base','Z2',Math.round(sogSec*1.1)],['Ritmo maratona','Z2-Z3',Math.round(sogSec*1.04)],['Ritmo mezza','Z3',Math.round(sogSec*0.97)],['Soglia','Z3-Z4',sogSec],['Ripetute 1K','Z4',Math.round(sogSec*0.94)],['Ripetute 400m','Z5',Math.round(sogSec*0.89)]]; paceHtml='<details style="margin-top:.75rem"><summary style="font-size:.65rem;color:var(--t2);cursor:pointer;user-select:none;list-style:none">▸ Tabella ritmi</summary><table class="pace-table"><thead><tr><th>Tipo</th><th>Zona</th><th>Ritmo</th></tr></thead><tbody>'+rows.map(function(r){ return '<tr><td>'+r[0]+'</td><td><span class="badge b-blue">'+r[1]+'</span></td><td><strong>'+fmtP(r[2])+'</strong></td></tr>'; }).join('')+'</tbody></table></details>'; } }
-    html+='<div class="pdc'+(isToday?' today-card':'')+(isRest?' rest-card':'')+'"><div class="pdc-top"><div><div class="pdc-dow">'+DAYS7[i]+'</div><div class="pdc-date">'+date.getDate()+'</div>'+(isToday?'<div class="pdc-today-pill">oggi</div>':'')+'</div><div class="pdc-right">'+(isRest?'<div style="font-size:.68rem;color:var(--t3)">Riposo</div>':'<div class="pdc-tss-num" style="color:'+col+'">'+tss+'</div><div class="pdc-tss-lbl">TSS</div><div class="pdc-tss-bar"><div class="pdc-tss-fill" style="width:'+Math.round(tss/maxTss*100)+'%;background:'+col+'"></div></div>'+(d.distanza?'<div class="pdc-dist">'+d.distanza+'</div>':''))+'</div></div><div class="pdc-disc">'+(d.disciplina||'Riposo')+'</div><div class="pdc-title">'+(d.titolo||'Riposo')+'</div>'+pillsHtml+descHtml+'<div class="pdc-tags">'+zoneTags+objTag+'</div>'+paceHtml+'</div>';
+  weeks.forEach(function(week,weekIdx){
+    var weekTss=week.reduce(function(a,d){return a+(d.tss||0);},0);
+    var weekLabel='Settimana '+(weekIdx+1);
+    if(week[0]&&week[0].data){ var wd=new Date(week[0].data); weekLabel='Sett. '+(weekIdx+1)+' \u2014 '+wd.getDate()+'/'+(wd.getMonth()+1); }
+    html+='<div style="margin-bottom:1.5rem"><div style="font-size:.6rem;color:var(--t2);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:.5rem;display:flex;justify-content:space-between"><span>'+weekLabel+'</span><span style="color:var(--acc-l)">TSS '+weekTss+'</span></div>';
+    week.forEach(function(d,i){
+      var dow=DAYS7[i%7];
+      var dateObj=d.data?new Date(d.data):null;
+      var isToday=dateObj&&dateObj.toDateString()===now.toDateString();
+      var isRest=!d.tipo||d.tipo.toLowerCase().indexOf('riposo')>=0;
+      var tss=d.tss||0,col=tssHex(tss),blocchi=Array.isArray(d.blocchi)?d.blocchi:[];
+      var pillsHtml='';
+      if(!isRest&&blocchi.length){ pillsHtml='<div class="wf">'; blocchi.forEach(function(b,bi){ pillsHtml+='<span class="wf-pill '+pillClass(b.tipo)+'">'+b.testo+'</span>'; if(bi<blocchi.length-1) pillsHtml+='<span class="wf-plus">+</span>'; }); pillsHtml+='</div>'; }
+      var descHtml=(!isRest&&d.descrizione)?'<div class="wf-desc">'+d.descrizione+'</div>':'';
+      var zoneTags=''; var _zones=d.zone?(Array.isArray(d.zone)?d.zone:[d.zone]):[]; _zones.forEach(function(z){ zoneTags+='<span class="pdc-tag '+zoneClass(z)+'">'+z+'</span>'; });
+      var objTag=d.obiettivo?'<span class="pdc-tag obj-tag">'+d.obiettivo+'</span>':'';
+      var dateLabel=dateObj?(dateObj.getDate()+'/'+(dateObj.getMonth()+1)):String(weekIdx*7+i+1);
+      html+='<div class="pdc'+(isToday?' today-card':'')+(isRest?' rest-card':'')+'"><div class="pdc-top"><div><div class="pdc-dow">'+dow+'</div><div class="pdc-date">'+dateLabel+'</div>'+(isToday?'<div class="pdc-today-pill">oggi</div>':'')+'</div><div class="pdc-right">'+(isRest?'<div style="font-size:.68rem;color:var(--t3)">Riposo</div>':'<div class="pdc-tss-num" style="color:'+col+'">'+tss+'</div><div class="pdc-tss-lbl">TSS</div><div class="pdc-tss-bar"><div class="pdc-tss-fill" style="width:'+Math.round(tss/maxTss*100)+'%;background:'+col+'"></div></div>'+(d.distanza?'<div class="pdc-dist">'+d.distanza+'</div>':''))+'</div></div><div class="pdc-disc">'+(d.disciplina||'Riposo')+'</div><div class="pdc-title">'+(d.titolo||'Riposo')+'</div>'+pillsHtml+descHtml+'<div class="pdc-tags">'+zoneTags+objTag+'</div></div>';
+    });
+    html+='</div>';
   });
   $('plan-days').innerHTML=html;
 }
@@ -678,31 +697,38 @@ function generatePlan(){
   if(planBusy) return; planBusy=true;
   $('plan-banner').style.display='flex'; $('plan-days').innerHTML=''; $('plan-empty').style.display='none';
   var ptc=$('plan-tss-card'); if(ptc) ptc.style.display='none'; var pgb=$('plan-goals-bar'); if(pgb) pgb.style.display='none';
-  var p=getProfile(),goals=getGoals();
-  var incl=(p.disciplines||[]).filter(function(d){ return d.inc!==false; });
-  var excl=(p.disciplines||[]).filter(function(d){ return d.inc===false; });
-  var inclStr=incl.length?incl.map(function(d){ return d.sport+': '+(d.ore||'?')+'h/sett, giorni: '+((d.giorni&&d.giorni.join('/'))||'flex')+(d.infortuni?' (infortuni: '+d.infortuni+')':''); }).join('\n'):'Nessuna specificata';
-  var exclStr=excl.length?excl.map(function(d){ return d.sport+': giorni '+(d.giorni&&d.giorni.join('/')||'vari')+' (blocca questi giorni)'; }).join('\n'):'Nessuna';
-  var goalStr=goals.length?goals.map(function(g){ return '['+g.prio+'] '+g.nome+' | '+g.tipo+' | '+g.data+(g.target?' | '+g.target:''); }).join('\n'):'Nessun obiettivo — piano di mantenimento generico';
   var _cp=localStorage.getItem('customPlanPrompt'); var prompt=_cp?_cp:getDefaultPrompt();
-  callAI([{role:'user',content:prompt}],buildSys(),3000)
+  callAI([{role:'user',content:prompt}],buildSys(),4000)
     .then(function(reply){
       var s=reply.indexOf('['),e=reply.lastIndexOf(']');
       if(s<0||e<=s) throw new Error('No JSON array');
       var raw=reply.substring(s,e+1);
       var days; try{ days=JSON.parse(raw); }catch(err){ days=JSON.parse(raw.replace(/,(\s*[}\]])/g,'$1')); }
       if(!Array.isArray(days)) throw new Error('Not array');
-      while(days.length<7) days.push({titolo:'Riposo',disciplina:'Riposo',tipo:'riposo',tss:0,zone:[],blocchi:[],descrizione:''});
-      days=days.slice(0,7).map(function(d){ if(!Array.isArray(d.blocchi)) d.blocchi=[]; if(typeof d.tss!=='number') d.tss=parseInt(d.tss)||0; return d; });
-      localStorage.setItem('lastPlanDays',JSON.stringify(days));
+      // Ensure each day has required fields
+      days=days.map(function(d){
+        if(!Array.isArray(d.blocchi)) d.blocchi=[];
+        if(typeof d.tss!=='number') d.tss=parseInt(d.tss)||0;
+        return d;
+      });
+      // If plan has no dates, assign dates starting from today's first training day
+      if(!days[0]||!days[0].data){
+        var today=new Date();
+        days.forEach(function(d,i){
+          var dt=new Date(today); dt.setDate(today.getDate()+i);
+          d.data=dt.toISOString().split('T')[0];
+        });
+      }
+      localStorage.setItem('currentPlan',JSON.stringify(days));
+      localStorage.setItem('lastPlanDays',JSON.stringify(days.slice(0,7)));
       localStorage.setItem('lastPlanDate',new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'}));
       renderPlanUI(days); renderHome();
-      $('plan-gen-date').textContent='Generato il '+localStorage.getItem('lastPlanDate');
+      $('plan-gen-date').textContent='Generato il '+localStorage.getItem('lastPlanDate')+' · '+days.length+' giorni totali';
     })
     .catch(function(err){ var msg=err&&err.message?err.message:String(err); toast('Errore piano: '+msg.substring(0,60)); $('plan-empty').style.display='block'; console.error('PIANO ERR:',err); })
     .finally(function(){ $('plan-banner').style.display='none'; planBusy=false; });
 }
-(function(){ var saved=null; try{ saved=JSON.parse(localStorage.getItem('lastPlanDays')||'null'); }catch(e){} if(saved&&Array.isArray(saved)&&saved.length>=7){ try{ renderPlanUI(saved); $('plan-gen-date').textContent='Piano del '+(localStorage.getItem('lastPlanDate')||''); }catch(e){ $('plan-empty').style.display='block'; } }else{ $('plan-empty').style.display='block'; } })();
+(function(){ var saved=null; try{ saved=JSON.parse(localStorage.getItem('currentPlan')||localStorage.getItem('lastPlanDays')||'null'); }catch(e){} if(saved&&Array.isArray(saved)&&saved.length>=7){ try{ renderPlanUI(saved); $('plan-gen-date').textContent='Piano del '+(localStorage.getItem('lastPlanDate')||'')+' · '+saved.length+' giorni'; }catch(e){ $('plan-empty').style.display='block'; } }else{ $('plan-empty').style.display='block'; } })();
 
 // ── Log ───────────────────────────────────────
 function addLog(data){
@@ -873,24 +899,58 @@ window.onresize=function(){ if(document.querySelector('#tab-home.active')) drawC
 
 function getDefaultPrompt(){
   var p=getProfile(), goals=getGoals();
-  var DAYNAMES=['Lunedi','Martedi','Mercoledi','Giovedi','Venerdi','Sabato','Domenica'];
+  var today=new Date();
+  // Find first training day >= today
+  var DAYNAMES=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+  var todayDow=(today.getDay()+6)%7; // Mon=0
   var discs=p.disciplines||[];
-  var inclStr=discs.filter(function(d){return d.inc!==false;}).map(function(d){
-    var days=d.giorni&&d.giorni.length?d.giorni.map(function(i){return DAYNAMES[i];}).join('/'):'-';
-    return d.sport+' '+d.ore+'h/sett giorni:'+days;
+  var inclDiscs=discs.filter(function(d){return d.inc!==false;});
+  // Collect all training days across disciplines
+  var allTrainingDays=[];
+  inclDiscs.forEach(function(d){
+    (d.giorni||[]).forEach(function(g){
+      var idx=DAYNAMES.indexOf(g);
+      if(idx>=0 && allTrainingDays.indexOf(idx)<0) allTrainingDays.push(idx);
+    });
+  });
+  allTrainingDays.sort();
+  // Find first training day >= today (within next 7 days)
+  var startDow=-1;
+  for(var di=0;di<7;di++){
+    var checkDow=(todayDow+di)%7;
+    if(allTrainingDays.indexOf(checkDow)>=0){ startDow=checkDow; break; }
+  }
+  if(startDow<0) startDow=todayDow; // fallback: start today
+  // Compute start date
+  var daysUntilStart=(startDow-todayDow+7)%7;
+  var startDate=new Date(today);
+  startDate.setDate(today.getDate()+daysUntilStart);
+  var startDateStr=startDate.toISOString().split('T')[0];
+  var inclStr=inclDiscs.map(function(d){
+    var days=d.giorni&&d.giorni.length?d.giorni.join('/'):'-';
+    return d.sport+' '+(d.ore||'?')+'h/sett giorni:'+days;
   }).join(' | ')||'Nessuna';
   var exclStr=discs.filter(function(d){return d.inc===false;}).map(function(d){return d.sport;}).join(', ')||'Nessuna';
   var goalStr=goals.length?goals.map(function(g){return '['+g.prio+'] '+g.nome+' '+g.data;}).join(', '):'Nessuno';
+  // Compute how many weeks until the primary goal
+  var primaryGoal=goals.filter(function(g){return g.prio==='A';}).sort(function(a,b){return new Date(a.data)-new Date(b.data);})[0]||goals[0];
+  var weeksUntilGoal=primaryGoal?Math.max(2,Math.round((new Date(primaryGoal.data)-startDate)/604800000)):4;
   var params='ritmo soglia '+(p.ritmo||'4:30')+'/km | FTP '+(p.ftp||'220')+'W | FC soglia '+(p.fcsoglia||'170')+'bpm';
-  return 'Genera un piano settimanale (7 giorni, lun-dom) basato esattamente su questi dati.\n\n'+
+  return 'Genera un piano di allenamento COMPLETO di '+weeksUntilGoal+' settimane, dal '+startDateStr+' fino alla gara/obiettivo.\n\n'+
     'OBIETTIVI: '+goalStr+'\n\n'+
     'DISCIPLINE CON GIORNI SPECIFICI:\n'+inclStr+'\n\n'+
     'DISCIPLINE ESCLUSE (quei giorni = Riposo):\n'+exclStr+'\n\n'+
     'PARAMETRI ATLETA: '+params+'\n\n'+
-    'REGOLA ASSOLUTA: allena SOLO nei giorni indicati per ogni disciplina. Tutti gli altri giorni = Riposo obbligatorio.\n\n'+
-    'Rispondi SOLO con JSON grezzo valido. Niente testo, niente markdown. Formato esatto:\n'+
-    '[{"titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n\n'+
-    'Riposo: {"titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
+    'REGOLE:\n'+
+    '1. Il piano inizia esattamente dal '+startDateStr+' (primo giorno di allenamento disponibile da oggi).\n'+
+    '2. Allena SOLO nei giorni indicati per ogni disciplina. Tutti gli altri giorni = Riposo.\n'+
+    '3. Genera TUTTE le '+weeksUntilGoal+' settimane, non solo la prima.\n'+
+    '4. Progressione logica: costruzione → sviluppo → picco → tapering nell\'ultima settimana prima della gara.\n'+
+    '5. Ogni settimana deve avere senso nel contesto del piano complessivo.\n\n'+
+    'Rispondi SOLO con JSON grezzo valido: un array di oggetti, uno per giorno, in ordine cronologico dal '+startDateStr+'. Niente testo, niente markdown.\n'+
+    'Formato per ogni giorno:\n'+
+    '[{"data":"YYYY-MM-DD","titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n\n'+
+    'Riposo: {"data":"YYYY-MM-DD","titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
 }
 
 function showCoachReport(session){
