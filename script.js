@@ -864,14 +864,14 @@ window.onresize=function(){ if(document.querySelector('#tab-home.active')) drawC
   if(!btn||!sb) return;
   function openMenu(){ sb.classList.add('mob-open'); if(ov) ov.classList.add('show'); }
   function closeMenu(){ sb.classList.remove('mob-open'); if(ov) ov.classList.remove('show'); }
-  btn.onclick=openMenu;
+  btn.onclick=function(){ sb.classList.contains('mob-open')?closeMenu():openMenu(); };
   if(ov) ov.onclick=closeMenu;
-  // Close on nav item click (mobile)
+  // Close on nav item click (always)
   sb.querySelectorAll('.sb-item').forEach(function(item){
-    item.addEventListener('click',function(){ if(window.innerWidth<=768) closeMenu(); });
+    item.addEventListener('click',function(){ closeMenu(); });
   });
   sb.querySelectorAll('.sb-profile,.sb-settings-btn').forEach(function(item){
-    item.addEventListener('click',function(){ if(window.innerWidth<=768) closeMenu(); });
+    item.addEventListener('click',function(){ closeMenu(); });
   });
 })();
 

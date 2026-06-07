@@ -41,6 +41,7 @@ body{background:var(--bg);color:var(--t0);font-family:var(--f);min-height:100vh;
 .sb-pname{font-size:.71rem;font-weight:600}.sb-psub{font-size:.58rem;color:var(--t2);margin-top:1px}
 .sb-settings-btn{display:flex;align-items:center;gap:7px;padding:6px 7px;border-radius:7px;cursor:pointer;color:var(--t2);font-size:.7rem;font-weight:500;transition:all .12s}
 .sb-settings-btn:hover{background:var(--s1);color:var(--t1)}
+.sb-settings-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.7}
 .mob-btn{display:flex!important}
 #mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99;backdrop-filter:blur(3px)}
 #mob-overlay.show{display:block!important}
