@@ -84,9 +84,13 @@ if($('ai-model')&&_savedModel) $('ai-model').value=_savedModel;
 function checkStravaStatus(){
   var serverUrl=getServerUrl();
   var localStatus=localStorage.getItem('stravaConnected');
-  var localName=localStorage.getItem('stravaAthleteName')||'Strava';
   if(!serverUrl){
-    updateStravaUI(localStatus==='true', localName);
+    // Anche senza server mostra UI corretta e wira il bottone
+    if(localStatus==='true'){
+      updateStravaUI(true, localStorage.getItem('stravaAthleteName')||'Strava');
+    } else {
+      updateStravaUI(false,'');
+    }
     return;
   }
   var userId=getUserId();
@@ -102,46 +106,32 @@ function checkStravaStatus(){
         localStorage.setItem('stravaConnected','false');
         updateStravaUI(false,'');
       }
-    }).catch(function(){ updateStravaUI(localStatus==='true', localName); });
+    }).catch(function(){ if(localStatus==='true') updateStravaUI(true, localStorage.getItem('stravaAthleteName')||'Strava'); });
 }
 
 function updateStravaUI(connected, athleteName){
-  // Home top-right
   var btnConn=$('btn-connect-strava');
   var chip=$('strava-chip-home');
   var chipStatus=$('strava-chip-status');
   if(btnConn) btnConn.style.display=connected?'none':'flex';
   if(chip) chip.style.display=connected?'flex':'none';
   if(chipStatus&&connected) chipStatus.textContent=athleteName||'connesso';
-  // Settings modal
-  var sc=$('settings-strava-connected'), sd=$('settings-strava-disconnected');
-  var sn=$('settings-strava-name');
-  if(sc) sc.style.display=connected?'block':'none';
-  if(sd) sd.style.display=connected?'none':'block';
-  if(sn&&connected) sn.textContent=athleteName;
-  // Log page sync button
   var syncBtn=$('btn-sync-strava'), syncStatus=$('strava-sync-status');
   if(syncBtn) syncBtn.style.display=connected?'block':'none';
   if(syncStatus) syncStatus.textContent=connected?'Strava connesso. Clicca per sincronizzare gli ultimi allenamenti.':'Connetti Strava per importare automaticamente i tuoi allenamenti.';
 }
 
-function toggleStravaDropdown(){
+function toggleStravaDropdown(e){
+  e.stopPropagation();
   var dd=$('strava-dropdown');
   if(!dd) return;
   var open=dd.style.display==='block';
   dd.style.display=open?'none':'block';
   if(!open){
     setTimeout(function(){
-      document.addEventListener('click', function closeDD(e){
-        if(!$('strava-topright').contains(e.target)){ dd.style.display='none'; document.removeEventListener('click',closeDD); }
-      });
+      document.addEventListener('click',function h(){ dd.style.display='none'; document.removeEventListener('click',h); });
     },10);
   }
-}
-
-function disconnectStravaHome(){
-  var dd=$('strava-dropdown'); if(dd) dd.style.display='none';
-  disconnectStrava();
 }
 
 function connectStrava(){
@@ -211,14 +201,6 @@ window.addEventListener('message', function(e){
     window.history.replaceState({},'','/');
   }
   checkStravaStatus();
-  // Wire connect button in home
-  var b=document.getElementById('btn-connect-strava');
-  if(b) b.onclick=connectStrava;
-  // Wire settings buttons
-  var sc=document.getElementById('settings-btn-connect');
-  if(sc) sc.onclick=connectStrava;
-  var sd=document.getElementById('settings-btn-disconnect');
-  if(sd) sd.onclick=disconnectStrava;
 // Fallback: wira bottone statico se non ancora wirato
 (function(){
   var b = document.getElementById('btn-connect-strava');
@@ -374,7 +356,7 @@ function renderDiscs(){
   disciplines.forEach(function(d,i){
     var inc=d.inc!==false;
     var opts=SPORTS.map(function(s){ return '<option'+(d.sport===s?' selected':'')+'>'+s+'</option>'; }).join('');
-    var chks=DAYS7.map(function(day){ var sel=(d.giorni||[]).indexOf(day)>=0; var onStyle='padding:3px 9px;font-size:.66rem;border-radius:5px;cursor:pointer;font-family:var(--f);transition:all .12s;'; return '<button type="button" class="day-tog" data-i="'+i+'" data-day="'+day+'" style="'+onStyle+'border:1px solid '+(sel?'var(--acc-l)':'var(--line2)')+';background:'+(sel?'var(--acc2)':'transparent')+';color:'+(sel?'var(--acc-l)':'var(--t2)')+'">'  +day+'</button>'; }).join('');
+    var chks=DAYS7.map(function(day){ var on=(d.giorni||[]).indexOf(day)>=0; return '<button type="button" class="day-tog" data-i="'+i+'" data-day="'+day+'" style="padding:3px 9px;font-size:.66rem;border-radius:5px;font-family:var(--f);cursor:pointer;border:1px solid '+(on?'var(--acc-l)':'var(--line2)')+';background:'+(on?'var(--acc2)':'transparent')+';color:'+(on?'var(--acc-l)':'var(--t2)')+'">'+day+'</button>'; }).join('');
     html+='<div class="disc-card"><button class="btn-del drm" data-i="'+i+'" style="position:absolute;top:9px;right:10px">×</button>'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.625rem"><div style="font-size:.65rem;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.6px">Disciplina '+(i+1)+'</div>'
       +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none"><span style="font-size:.65rem;color:'+(inc?'#00d68f':'rgba(255,255,255,.14)')+';font-weight:500">'+(inc?'Inclusa nel piano':'Esclusa')+'</span>'
@@ -393,7 +375,7 @@ function renderDiscs(){
   el.querySelectorAll('.dore').forEach(function(s){ s.oninput=function(){ disciplines[+this.dataset.i].ore=this.value; }; });
   el.querySelectorAll('.dsess').forEach(function(s){ s.oninput=function(){ disciplines[+this.dataset.i].sessioni=this.value; }; });
   el.querySelectorAll('.dinj').forEach(function(s){ s.oninput=function(){ disciplines[+this.dataset.i].infortuni=this.value; }; });
-  el.querySelectorAll('.day-tog').forEach(function(btn){ btn.onclick=function(){ var i=+this.dataset.i,day=this.dataset.day; if(!disciplines[i].giorni) disciplines[i].giorni=[]; var idx=disciplines[i].giorni.indexOf(day); if(idx<0){ disciplines[i].giorni.push(day); }else{ disciplines[i].giorni.splice(idx,1); } renderDiscs(); }; });
+  el.querySelectorAll('.day-tog').forEach(function(b){ b.onclick=function(){ var i=+this.dataset.i,day=this.dataset.day; if(!disciplines[i].giorni) disciplines[i].giorni=[]; var idx=disciplines[i].giorni.indexOf(day); if(idx<0) disciplines[i].giorni.push(day); else disciplines[i].giorni.splice(idx,1); renderDiscs(); }; });
 }
 $('btn-add-disc').onclick=function(){ disciplines.push({sport:SPORTS[0],ore:'',sessioni:'',giorni:[],infortuni:'',inc:true}); renderDiscs(); };
 
@@ -474,7 +456,10 @@ function renderHome(){
   var _hr = new Date().getHours();
   if($('greetingLabel')) $('greetingLabel').textContent = _hr<12?'Buongiorno':_hr<18?'Buon pomeriggio':'Buonasera';
   // Strava chip
-  // Strava chip managed by updateStravaUI - no need to duplicate here
+  var _strConn = localStorage.getItem('stravaConnected')==='true';
+  var _chip = $('strava-chip-home');
+  if(_chip) _chip.style.display = _strConn ? 'flex' : 'none';
+  if(_strConn){ var _cs=$('strava-chip-status'); if(_cs) _cs.textContent = localStorage.getItem('stravaAthleteName')||'connesso'; }
   // Today hero from plan
   var _plan = null; try{ _plan = JSON.parse(localStorage.getItem('currentPlan')||'null'); }catch(e){}
   var _todayIdx = -1;
@@ -891,48 +876,27 @@ window.onresize=function(){ if(document.querySelector('#tab-home.active')) drawC
 
 function getDefaultPrompt(){
   var p=getProfile(), goals=getGoals();
+  var DN=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
   var today=new Date();
-  var DAYNAMES=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
   var discs=p.disciplines||[];
-  var inclDiscs=discs.filter(function(d){return d.inc!==false;});
-  // giorni are already strings like 'Lun','Mar'... no mapping needed
-  var inclStr=inclDiscs.map(function(d){
-    var days=d.giorni&&d.giorni.length?d.giorni.join('/'):'-';
-    return d.sport+' '+(d.ore||'?')+'h/sett giorni:'+days;
+  var incl=discs.filter(function(d){return d.inc!==false;});
+  var inclStr=incl.map(function(d){
+    return d.sport+' '+(d.ore||'?')+'h/sett giorni:'+(d.giorni&&d.giorni.length?d.giorni.join('/'):'-');
   }).join(' | ')||'Nessuna';
   var exclStr=discs.filter(function(d){return d.inc===false;}).map(function(d){return d.sport;}).join(', ')||'Nessuna';
   var goalStr=goals.length?goals.map(function(g){return '['+g.prio+'] '+g.nome+' '+g.data;}).join(', '):'Nessuno';
-  // Find first training day >= today
-  var allTrainDow=[];
-  inclDiscs.forEach(function(d){
-    (d.giorni||[]).forEach(function(g){
-      var idx=DAYNAMES.indexOf(g);
-      if(idx>=0&&allTrainDow.indexOf(idx)<0) allTrainDow.push(idx);
-    });
-  });
-  allTrainDow.sort();
-  var todayDow=(today.getDay()+6)%7;
-  var daysToStart=0;
-  for(var di=0;di<7;di++){
-    if(allTrainDow.indexOf((todayDow+di)%7)>=0){ daysToStart=di; break; }
-  }
-  var startDate=new Date(today); startDate.setDate(today.getDate()+daysToStart);
+  var allDow=[]; incl.forEach(function(d){ (d.giorni||[]).forEach(function(g){ var i=DN.indexOf(g); if(i>=0&&allDow.indexOf(i)<0) allDow.push(i); }); });
+  var todayDow=(today.getDay()+6)%7, skip=0;
+  for(var di=0;di<7;di++){ if(allDow.indexOf((todayDow+di)%7)>=0){ skip=di; break; } }
+  var startDate=new Date(today); startDate.setDate(today.getDate()+skip);
   var startStr=startDate.toISOString().split('T')[0];
-  var primaryGoal=goals.filter(function(g){return g.prio==='A';}).sort(function(a,b){return new Date(a.data)-new Date(b.data);})[0]||goals[0];
-  var weeksUntilGoal=primaryGoal?Math.max(2,Math.round((new Date(primaryGoal.data)-startDate)/604800000)):4;
+  var pg=goals.filter(function(g){return g.prio==='A';}).sort(function(a,b){return new Date(a.data)-new Date(b.data);})[0]||goals[0];
+  var weeks=pg?Math.max(2,Math.round((new Date(pg.data)-startDate)/604800000)):4;
   var params='ritmo soglia '+(p.ritmo||'4:30')+'/km | FTP '+(p.ftp||'220')+'W | FC soglia '+(p.fcsoglia||'170')+'bpm';
-  return 'Genera un piano di allenamento COMPLETO di '+weeksUntilGoal+' settimane, dal '+startStr+'.\n\n'+
-    'OBIETTIVI: '+goalStr+'\n\n'+
-    'DISCIPLINE CON GIORNI SPECIFICI:\n'+inclStr+'\n\n'+
-    'DISCIPLINE ESCLUSE: '+exclStr+'\n\n'+
-    'PARAMETRI ATLETA: '+params+'\n\n'+
-    'REGOLE ASSOLUTE:\n'+
-    '1. Piano inizia dal '+startStr+' (primo giorno allenamento disponibile >= oggi).\n'+
-    '2. Allena SOLO nei giorni indicati per disciplina. Tutti gli altri = Riposo.\n'+
-    '3. Genera TUTTE le '+weeksUntilGoal+' settimane (non solo la prima).\n'+
-    '4. Progressione: costruzione → sviluppo → picco → tapering ultima settimana.\n\n'+
-    'Rispondi SOLO con JSON grezzo valido (array, no testo, no markdown). Formato ogni giorno:\n'+
-    '[{"data":"YYYY-MM-DD","titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n'+
+  return 'Genera piano COMPLETO di '+weeks+' settimane dal '+startStr+'.\n\n'+
+    'OBIETTIVI: '+goalStr+'\nDISCIPLINE:\n'+inclStr+'\nESCLUSE: '+exclStr+'\nATLETA: '+params+'\n\n'+
+    'REGOLE: inizia dal '+startStr+'; allena solo nei giorni indicati; genera TUTTE le '+weeks+' settimane; progressione con tapering finale.\n\n'+
+    'Rispondi SOLO con array JSON grezzo. Ogni giorno: {"data":"YYYY-MM-DD","titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}\n'+
     'Riposo: {"data":"YYYY-MM-DD","titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
 }
 
