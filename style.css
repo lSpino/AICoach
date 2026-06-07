@@ -18,7 +18,8 @@ html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--t0);font-family:var(--f);min-height:100vh;font-size:13px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 
 /* SIDEBAR */
-.sidebar{width:210px;flex-shrink:0;background:var(--bg);border-right:1px solid var(--line);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:10}
+.sidebar{width:210px;flex-shrink:0;background:var(--bg);border-right:1px solid var(--line);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1)}
+.sidebar.mob-open{transform:translateX(0)}
 .sb-logo{padding:17px 15px;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--line)}
 .sb-mark{width:26px;height:26px;background:var(--acc);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .sb-mark svg{width:12px;height:12px;fill:var(--acc-ll)}
@@ -40,10 +41,12 @@ body{background:var(--bg);color:var(--t0);font-family:var(--f);min-height:100vh;
 .sb-pname{font-size:.71rem;font-weight:600}.sb-psub{font-size:.58rem;color:var(--t2);margin-top:1px}
 .sb-settings-btn{display:flex;align-items:center;gap:7px;padding:6px 7px;border-radius:7px;cursor:pointer;color:var(--t2);font-size:.7rem;font-weight:500;transition:all .12s}
 .sb-settings-btn:hover{background:var(--s1);color:var(--t1)}
-.sb-settings-btn svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:1.7}
+.mob-btn{display:flex!important}
+#mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99;backdrop-filter:blur(3px)}
+#mob-overlay.show{display:block!important}
 
 /* MAIN */
-.main{margin-left:210px;padding:26px 26px 80px;max-width:940px}
+.main{margin-left:0;padding:26px 26px 80px;max-width:940px}
 .tab{display:none}.tab.active{display:block;animation:fi .16s ease}
 @keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .pg-head{margin-bottom:22px}
@@ -369,9 +372,7 @@ input[type="date"],input[type="number"]{font-family:var(--mono);font-size:.75rem
 /* ── Mobile responsive ────────────────────────── */
 @media(max-width:768px){
   .mob-btn{display:flex!important} #mob-menu-btn{display:flex!important}
-  .sidebar{transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1)}
-  .sidebar.mob-open{transform:translateX(0);z-index:99}
-  .main{margin-left:0!important;padding:16px 14px 80px}
+  .main{padding:16px 14px 80px}
   #mob-overlay.show{display:block!important}
   .pg-head h1{font-size:1rem}
   .g2,.g3{grid-template-columns:1fr!important}

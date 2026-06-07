@@ -144,7 +144,7 @@
     <div class="nx-lbl">Prossime sessioni</div>
     <div class="nx3" id="next-sessions"></div>
 
-    <div style="display:none" id="strava-banner"><div id="strava-name"></div><div id="strava-sub"></div><div id="strava-actions"></div></div>
+    <div style="display:none" id="strava-banner"><span id="strava-name"></span><span id="strava-sub"></span><span id="strava-actions"></span></div>
 
     <!-- hidden anchors for JS compatibility -->
     <div style="display:none!important;visibility:hidden;height:0;overflow:hidden">
@@ -411,25 +411,6 @@
       <div class="row-act" style="margin-top:0">
         <button class="btn btn-primary" id="btn-save-prompt">Salva</button>
         <button class="btn btn-ghost" id="btn-reset-prompt">Ripristina default</button>
-      </div>
-    </div>
-    <div class="card" style="margin-top:6px" id="settings-strava-card">
-      <div class="card-label">Strava</div>
-      <div id="settings-strava-connected" style="display:none">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-          <div style="width:28px;height:28px;background:var(--strava);border-radius:6px;display:flex;align-items:center;justify-content:center">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
-          </div>
-          <div>
-            <div style="font-size:.77rem;font-weight:600" id="settings-strava-name">Connesso</div>
-            <div style="font-size:.63rem;color:var(--t2)">Sincronizzazione attiva</div>
-          </div>
-        </div>
-        <button class="btn btn-ghost" id="settings-btn-disconnect" style="font-size:.69rem;color:var(--rd);border-color:rgba(255,59,92,.2)">Disconnetti da Strava</button>
-      </div>
-      <div id="settings-strava-disconnected">
-        <p style="font-size:.7rem;color:var(--t2);margin-bottom:10px;line-height:1.6">Connetti Strava per sincronizzare gli allenamenti.</p>
-        <button class="btn btn-orange" id="settings-btn-connect">Connetti Strava</button>
       </div>
     </div>
     <div class="row-act"><button class="btn btn-ghost" id="btn-close-settings">Chiudi</button></div>

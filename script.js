@@ -109,29 +109,23 @@ function checkStravaStatus(){
     }).catch(function(){ if(localStatus==='true') updateStravaUI(true, localStorage.getItem('stravaAthleteName')||'Strava'); });
 }
 
-function updateStravaUI(connected, athleteName){
-  var btnConn=$('btn-connect-strava');
-  var chip=$('strava-chip-home');
-  var chipStatus=$('strava-chip-status');
-  if(btnConn) btnConn.style.display=connected?'none':'flex';
-  if(chip) chip.style.display=connected?'flex':'none';
-  if(chipStatus&&connected) chipStatus.textContent=athleteName||'connesso';
-  var syncBtn=$('btn-sync-strava'), syncStatus=$('strava-sync-status');
-  if(syncBtn) syncBtn.style.display=connected?'block':'none';
-  if(syncStatus) syncStatus.textContent=connected?'Strava connesso. Clicca per sincronizzare gli ultimi allenamenti.':'Connetti Strava per importare automaticamente i tuoi allenamenti.';
-}
-
 function toggleStravaDropdown(e){
   e.stopPropagation();
   var dd=$('strava-dropdown');
   if(!dd) return;
   var open=dd.style.display==='block';
   dd.style.display=open?'none':'block';
-  if(!open){
-    setTimeout(function(){
-      document.addEventListener('click',function h(){ dd.style.display='none'; document.removeEventListener('click',h); });
-    },10);
-  }
+  if(!open){ setTimeout(function(){ document.addEventListener('click',function h(){ dd.style.display='none'; document.removeEventListener('click',h); }); },10); }
+}
+function updateStravaUI(connected, athleteName){
+  var btnConn=$('btn-connect-strava');
+  var chip=$('strava-chip-home');
+  if(btnConn) btnConn.style.display=connected?'none':'flex';
+  if(chip) chip.style.display=connected?'flex':'none';
+  var cs=$('strava-chip-status'); if(cs&&connected) cs.textContent=athleteName||'connesso';
+  var syncBtn=$('btn-sync-strava'), syncStatus=$('strava-sync-status');
+  if(syncBtn) syncBtn.style.display=connected?'block':'none';
+  if(syncStatus) syncStatus.textContent=connected?'Strava connesso. Clicca per sincronizzare gli ultimi allenamenti.':'Connetti Strava per importare automaticamente i tuoi allenamenti.';
 }
 
 function connectStrava(){
@@ -201,10 +195,10 @@ window.addEventListener('message', function(e){
     window.history.replaceState({},'','/');
   }
   checkStravaStatus();
-// Fallback: wira bottone statico se non ancora wirato
+// Wire connect button
 (function(){
   var b = document.getElementById('btn-connect-strava');
-  if(b && !b.onclick) b.onclick = connectStrava;
+  if(b) b.onclick = connectStrava;
 })();
 })();
 
@@ -356,7 +350,7 @@ function renderDiscs(){
   disciplines.forEach(function(d,i){
     var inc=d.inc!==false;
     var opts=SPORTS.map(function(s){ return '<option'+(d.sport===s?' selected':'')+'>'+s+'</option>'; }).join('');
-    var chks=DAYS7.map(function(day){ var on=(d.giorni||[]).indexOf(day)>=0; return '<button type="button" class="day-tog" data-i="'+i+'" data-day="'+day+'" style="padding:3px 9px;font-size:.66rem;border-radius:5px;font-family:var(--f);cursor:pointer;border:1px solid '+(on?'var(--acc-l)':'var(--line2)')+';background:'+(on?'var(--acc2)':'transparent')+';color:'+(on?'var(--acc-l)':'var(--t2)')+'">'+day+'</button>'; }).join('');
+    var chks=DAYS7.map(function(day){ return '<label style="display:flex;align-items:center;gap:4px;font-size:.68rem;color:var(--t2);cursor:pointer"><input type="checkbox" class="dchk" data-i="'+i+'" data-day="'+day+'"'+((d.giorni||[]).indexOf(day)>=0?' checked':'')+' style="width:auto;padding:0;accent-color:var(--acc-l)"> '+day+'</label>'; }).join('');
     html+='<div class="disc-card"><button class="btn-del drm" data-i="'+i+'" style="position:absolute;top:9px;right:10px">×</button>'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.625rem"><div style="font-size:.65rem;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.6px">Disciplina '+(i+1)+'</div>'
       +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none"><span style="font-size:.65rem;color:'+(inc?'#00d68f':'rgba(255,255,255,.14)')+';font-weight:500">'+(inc?'Inclusa nel piano':'Esclusa')+'</span>'
@@ -375,7 +369,7 @@ function renderDiscs(){
   el.querySelectorAll('.dore').forEach(function(s){ s.oninput=function(){ disciplines[+this.dataset.i].ore=this.value; }; });
   el.querySelectorAll('.dsess').forEach(function(s){ s.oninput=function(){ disciplines[+this.dataset.i].sessioni=this.value; }; });
   el.querySelectorAll('.dinj').forEach(function(s){ s.oninput=function(){ disciplines[+this.dataset.i].infortuni=this.value; }; });
-  el.querySelectorAll('.day-tog').forEach(function(b){ b.onclick=function(){ var i=+this.dataset.i,day=this.dataset.day; if(!disciplines[i].giorni) disciplines[i].giorni=[]; var idx=disciplines[i].giorni.indexOf(day); if(idx<0) disciplines[i].giorni.push(day); else disciplines[i].giorni.splice(idx,1); renderDiscs(); }; });
+  el.querySelectorAll('.dchk').forEach(function(c){ c.onchange=function(){ var i=+this.dataset.i,day=this.dataset.day; if(!disciplines[i].giorni) disciplines[i].giorni=[]; if(this.checked){ if(disciplines[i].giorni.indexOf(day)<0) disciplines[i].giorni.push(day); } else { disciplines[i].giorni=disciplines[i].giorni.filter(function(d){ return d!==day; }); } }; });
 }
 $('btn-add-disc').onclick=function(){ disciplines.push({sport:SPORTS[0],ore:'',sessioni:'',giorni:[],infortuni:'',inc:true}); renderDiscs(); };
 
@@ -656,23 +650,32 @@ function renderPlanUI(days){
   if(goals.length&&pgb&&pgt){ pgb.style.display='block'; pgt.innerHTML=goals.map(function(g){ return '<span class="badge b-blue">'+g.nome+' · '+g.data+'</span>'; }).join(''); }
   var tot=days.reduce(function(a,d){ return a+(d.tss||0); },0); var ptot=$('plan-tss-tot'); if(ptot) ptot.textContent='TSS totale: '+tot; var ptc=$('plan-tss-card'); if(ptc) ptc.style.display='block';
   setTimeout(function(){ drawPlanTss('planTssChart',days); },50); $('plan-empty').style.display='none';
-  var now=new Date(),off=(now.getDay()+6)%7,mon=new Date(now); mon.setDate(now.getDate()-off); mon.setHours(0,0,0,0);
+  var now=new Date();
   var maxTss=Math.max.apply(null,days.map(function(d){ return d.tss||0; }).concat([1]));
+  // Group into weeks of 7
   var html='';
-  days.forEach(function(d,i){
-    var date=new Date(mon); date.setDate(mon.getDate()+i);
-    var isToday=date.toDateString()===now.toDateString();
-    var isRest=!d.tipo||d.tipo.toLowerCase().indexOf('riposo')>=0;
-    var tss=d.tss||0,col=tssHex(tss),blocchi=Array.isArray(d.blocchi)?d.blocchi:[];
-    var pillsHtml='';
-    if(!isRest&&blocchi.length){ pillsHtml='<div class="wf">'; blocchi.forEach(function(b,bi){ pillsHtml+='<span class="wf-pill '+pillClass(b.tipo)+'">'+b.testo+'</span>'; if(bi<blocchi.length-1) pillsHtml+='<span class="wf-plus">+</span>'; }); pillsHtml+='</div>'; }
-    var descHtml=(!isRest&&d.descrizione)?'<div class="wf-desc">'+d.descrizione+'</div>':'';
-    var zoneTags=''; var _zones=d.zone?(Array.isArray(d.zone)?d.zone:[d.zone]):[]; _zones.forEach(function(z){ zoneTags+='<span class="pdc-tag '+zoneClass(z)+'">'+z+'</span>'; });
-    var objTag=d.obiettivo?'<span class="pdc-tag obj-tag">'+d.obiettivo+'</span>':'';
-    var paceHtml='';
-    if(!isRest&&(d.disciplina==='Corsa'||d.disciplina==='Trail Running')){ var p=getProfile(); if(p.ritmo){ var pts=p.ritmo.split(':'),sogSec=parseInt(pts[0]||0)*60+parseInt(pts[1]||0); function fmtP(s){ return Math.floor(s/60)+':'+(s%60<10?'0':'')+s%60+'/km'; } var rows=[['Riscaldamento','Z1',Math.round(sogSec*1.18)],['Aerobica base','Z2',Math.round(sogSec*1.1)],['Ritmo maratona','Z2-Z3',Math.round(sogSec*1.04)],['Ritmo mezza','Z3',Math.round(sogSec*0.97)],['Soglia','Z3-Z4',sogSec],['Ripetute 1K','Z4',Math.round(sogSec*0.94)],['Ripetute 400m','Z5',Math.round(sogSec*0.89)]]; paceHtml='<details style="margin-top:.75rem"><summary style="font-size:.65rem;color:var(--t2);cursor:pointer;user-select:none;list-style:none">▸ Tabella ritmi</summary><table class="pace-table"><thead><tr><th>Tipo</th><th>Zona</th><th>Ritmo</th></tr></thead><tbody>'+rows.map(function(r){ return '<tr><td>'+r[0]+'</td><td><span class="badge b-blue">'+r[1]+'</span></td><td><strong>'+fmtP(r[2])+'</strong></td></tr>'; }).join('')+'</tbody></table></details>'; } }
-    html+='<div class="pdc'+(isToday?' today-card':'')+(isRest?' rest-card':'')+'"><div class="pdc-top"><div><div class="pdc-dow">'+DAYS7[i]+'</div><div class="pdc-date">'+date.getDate()+'</div>'+(isToday?'<div class="pdc-today-pill">oggi</div>':'')+'</div><div class="pdc-right">'+(isRest?'<div style="font-size:.68rem;color:var(--t3)">Riposo</div>':'<div class="pdc-tss-num" style="color:'+col+'">'+tss+'</div><div class="pdc-tss-lbl">TSS</div><div class="pdc-tss-bar"><div class="pdc-tss-fill" style="width:'+Math.round(tss/maxTss*100)+'%;background:'+col+'"></div></div>'+(d.distanza?'<div class="pdc-dist">'+d.distanza+'</div>':''))+'</div></div><div class="pdc-disc">'+(d.disciplina||'Riposo')+'</div><div class="pdc-title">'+(d.titolo||'Riposo')+'</div>'+pillsHtml+descHtml+'<div class="pdc-tags">'+zoneTags+objTag+'</div>'+paceHtml+'</div>';
-  });
+  for(var wi=0;wi<days.length;wi+=7){
+    var week=days.slice(wi,wi+7);
+    var weekTss=week.reduce(function(a,d){return a+(d.tss||0);},0);
+    var wLabel='Settimana '+(wi/7+1);
+    if(week[0]&&week[0].data){ var wd=new Date(week[0].data); wLabel='Sett.'+(wi/7+1)+' — '+wd.getDate()+'/'+(wd.getMonth()+1); }
+    html+='<div style="margin-bottom:1.5rem"><div style="font-size:.6rem;color:var(--t2);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:center"><span>'+wLabel+'</span><span style="color:var(--acc-l)">TSS '+weekTss+'</span></div>';
+    week.forEach(function(d,i){
+      var dow=DAYS7[i%7];
+      var dateObj=d.data?new Date(d.data):null;
+      var isToday=dateObj&&dateObj.toDateString()===now.toDateString();
+      var isRest=!d.tipo||d.tipo.toLowerCase().indexOf('riposo')>=0;
+      var tss=d.tss||0,col=tssHex(tss),blocchi=Array.isArray(d.blocchi)?d.blocchi:[];
+      var pillsHtml='';
+      if(!isRest&&blocchi.length){ pillsHtml='<div class="wf">'; blocchi.forEach(function(b,bi){ pillsHtml+='<span class="wf-pill '+pillClass(b.tipo)+'">'+b.testo+'</span>'; if(bi<blocchi.length-1) pillsHtml+='<span class="wf-plus">+</span>'; }); pillsHtml+='</div>'; }
+      var descHtml=(!isRest&&d.descrizione)?'<div class="wf-desc">'+d.descrizione+'</div>':'';
+      var zoneTags=''; var _zones=d.zone?(Array.isArray(d.zone)?d.zone:[d.zone]):[]; _zones.forEach(function(z){ zoneTags+='<span class="pdc-tag '+zoneClass(z)+'">'+z+'</span>'; });
+      var objTag=d.obiettivo?'<span class="pdc-tag obj-tag">'+d.obiettivo+'</span>':'';
+      var dateLabel=dateObj?(dateObj.getDate()+'/'+(dateObj.getMonth()+1)):(wi+i+1);
+      html+='<div class="pdc'+(isToday?' today-card':'')+(isRest?' rest-card':'')+'"><div class="pdc-top"><div><div class="pdc-dow">'+dow+'</div><div class="pdc-date">'+dateLabel+'</div>'+(isToday?'<div class="pdc-today-pill">oggi</div>':'')+'</div><div class="pdc-right">'+(isRest?'<div style="font-size:.68rem;color:var(--t3)">Riposo</div>':'<div class="pdc-tss-num" style="color:'+col+'">'+tss+'</div><div class="pdc-tss-lbl">TSS</div><div class="pdc-tss-bar"><div class="pdc-tss-fill" style="width:'+Math.round(tss/maxTss*100)+'%;background:'+col+'"></div></div>'+(d.distanza?'<div class="pdc-dist">'+d.distanza+'</div>':''))+'</div></div><div class="pdc-disc">'+(d.disciplina||'Riposo')+'</div><div class="pdc-title">'+(d.titolo||'Riposo')+'</div>'+pillsHtml+descHtml+'<div class="pdc-tags">'+zoneTags+objTag+'</div></div>';
+    });
+    html+='</div>';
+  }
   $('plan-days').innerHTML=html;
 }
 
@@ -695,12 +698,11 @@ function generatePlan(){
       var raw=reply.substring(s,e+1);
       var days; try{ days=JSON.parse(raw); }catch(err){ days=JSON.parse(raw.replace(/,(\s*[}\]])/g,'$1')); }
       if(!Array.isArray(days)) throw new Error('Not array');
-      while(days.length<7) days.push({titolo:'Riposo',disciplina:'Riposo',tipo:'riposo',tss:0,zone:[],blocchi:[],descrizione:''});
-      days=days.slice(0,7).map(function(d){ if(!Array.isArray(d.blocchi)) d.blocchi=[]; if(typeof d.tss!=='number') d.tss=parseInt(d.tss)||0; return d; });
+      days=days.map(function(d){ if(!Array.isArray(d.blocchi)) d.blocchi=[]; if(typeof d.tss!=='number') d.tss=parseInt(d.tss)||0; return d; });
       localStorage.setItem('lastPlanDays',JSON.stringify(days));
       localStorage.setItem('lastPlanDate',new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'}));
       renderPlanUI(days); renderHome();
-      $('plan-gen-date').textContent='Generato il '+localStorage.getItem('lastPlanDate');
+      $('plan-gen-date').textContent='Generato il '+localStorage.getItem('lastPlanDate')+' · '+days.length+' giorni';
     })
     .catch(function(err){ var msg=err&&err.message?err.message:String(err); toast('Errore piano: '+msg.substring(0,60)); $('plan-empty').style.display='block'; console.error('PIANO ERR:',err); })
     .finally(function(){ $('plan-banner').style.display='none'; planBusy=false; });
@@ -876,28 +878,24 @@ window.onresize=function(){ if(document.querySelector('#tab-home.active')) drawC
 
 function getDefaultPrompt(){
   var p=getProfile(), goals=getGoals();
-  var DN=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
-  var today=new Date();
+  var DAYNAMES=['Lunedi','Martedi','Mercoledi','Giovedi','Venerdi','Sabato','Domenica'];
   var discs=p.disciplines||[];
-  var incl=discs.filter(function(d){return d.inc!==false;});
-  var inclStr=incl.map(function(d){
-    return d.sport+' '+(d.ore||'?')+'h/sett giorni:'+(d.giorni&&d.giorni.length?d.giorni.join('/'):'-');
+  var inclStr=discs.filter(function(d){return d.inc!==false;}).map(function(d){
+    var days=d.giorni&&d.giorni.length?d.giorni.join('/'):'-';
+    return d.sport+' '+(d.ore||'?')+'h/sett giorni:'+days;
   }).join(' | ')||'Nessuna';
   var exclStr=discs.filter(function(d){return d.inc===false;}).map(function(d){return d.sport;}).join(', ')||'Nessuna';
   var goalStr=goals.length?goals.map(function(g){return '['+g.prio+'] '+g.nome+' '+g.data;}).join(', '):'Nessuno';
-  var allDow=[]; incl.forEach(function(d){ (d.giorni||[]).forEach(function(g){ var i=DN.indexOf(g); if(i>=0&&allDow.indexOf(i)<0) allDow.push(i); }); });
-  var todayDow=(today.getDay()+6)%7, skip=0;
-  for(var di=0;di<7;di++){ if(allDow.indexOf((todayDow+di)%7)>=0){ skip=di; break; } }
-  var startDate=new Date(today); startDate.setDate(today.getDate()+skip);
-  var startStr=startDate.toISOString().split('T')[0];
-  var pg=goals.filter(function(g){return g.prio==='A';}).sort(function(a,b){return new Date(a.data)-new Date(b.data);})[0]||goals[0];
-  var weeks=pg?Math.max(2,Math.round((new Date(pg.data)-startDate)/604800000)):4;
   var params='ritmo soglia '+(p.ritmo||'4:30')+'/km | FTP '+(p.ftp||'220')+'W | FC soglia '+(p.fcsoglia||'170')+'bpm';
-  return 'Genera piano COMPLETO di '+weeks+' settimane dal '+startStr+'.\n\n'+
-    'OBIETTIVI: '+goalStr+'\nDISCIPLINE:\n'+inclStr+'\nESCLUSE: '+exclStr+'\nATLETA: '+params+'\n\n'+
-    'REGOLE: inizia dal '+startStr+'; allena solo nei giorni indicati; genera TUTTE le '+weeks+' settimane; progressione con tapering finale.\n\n'+
-    'Rispondi SOLO con array JSON grezzo. Ogni giorno: {"data":"YYYY-MM-DD","titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}\n'+
-    'Riposo: {"data":"YYYY-MM-DD","titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
+  return 'Genera un piano settimanale (7 giorni, lun-dom) basato esattamente su questi dati.\n\n'+
+    'OBIETTIVI: '+goalStr+'\n\n'+
+    'DISCIPLINE CON GIORNI SPECIFICI:\n'+inclStr+'\n\n'+
+    'DISCIPLINE ESCLUSE (quei giorni = Riposo):\n'+exclStr+'\n\n'+
+    'PARAMETRI ATLETA: '+params+'\n\n'+
+    'REGOLA ASSOLUTA: allena SOLO nei giorni indicati per ogni disciplina. Tutti gli altri giorni = Riposo obbligatorio.\n\n'+
+    'Rispondi SOLO con JSON grezzo valido. Niente testo, niente markdown. Formato esatto:\n'+
+    '[{"titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n\n'+
+    'Riposo: {"titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
 }
 
 function showCoachReport(session){
