@@ -50,10 +50,27 @@
         <h1 id="greetingLabel">Buongiorno</h1>
         <p id="dateLabel"></p>
       </div>
-      <div class="strava-chip" id="strava-chip-home" style="display:none">
-        <div class="strava-dot"></div>
-        <span class="strava-chip-lbl">Strava&nbsp;</span>
-        <span class="strava-chip-val" id="strava-chip-status">connesso</span>
+      <!-- Strava top-right: connect button or connected chip with dropdown -->
+      <div id="strava-topright" style="position:relative;flex-shrink:0">
+        <!-- Disconnected: show connect button -->
+        <button class="btn btn-orange" id="btn-connect-strava" style="font-size:.72rem;padding:6px 14px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="white" style="flex-shrink:0"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+          Connetti Strava
+        </button>
+        <!-- Connected: chip with dropdown -->
+        <div id="strava-chip-home" style="display:none;align-items:center;gap:6px;background:var(--s2);border:1px solid var(--line2);border-radius:20px;padding:5px 12px 5px 8px;cursor:pointer" onclick="toggleStravaDropdown()">
+          <div style="width:7px;height:7px;border-radius:50%;background:#FC4C02;flex-shrink:0"></div>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="#FC4C02"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+          <span style="font-size:.72rem;font-weight:500;color:var(--t1)" id="strava-chip-status">connesso</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--t2)" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <!-- Dropdown -->
+        <div id="strava-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:var(--s2);border:1px solid var(--line2);border-radius:10px;padding:4px;min-width:160px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4)">
+          <button onclick="disconnectStravaHome()" style="width:100%;text-align:left;background:none;border:none;padding:8px 12px;font-size:.73rem;color:var(--rd);cursor:pointer;border-radius:7px;font-family:var(--f);display:flex;align-items:center;gap:8px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            Disconnetti Strava
+          </button>
+        </div>
       </div>
     </div>
 
@@ -137,8 +154,8 @@
 
     <!-- hidden anchors for JS compatibility -->
     <div style="display:none!important;visibility:hidden;height:0;overflow:hidden">
-      <div id="strava-name"></div><div id="strava-sub"></div><div id="strava-actions"><button id="btn-connect-strava"></button></div>
-      <div id="strava-banner"></div>
+      <div id="strava-name"></div><div id="strava-sub"></div><div id="strava-actions"></div><div id="strava-banner"></div>
+    <div style="display:none!important;visibility:hidden;height:0;overflow:hidden">
       <canvas id="barChart"></canvas><canvas id="pmcChart"></canvas>
       <div id="kpi-km"></div><div id="kpi-time"></div><div id="kpi-tss"></div><div id="kpi-fc"></div>
       <div id="inj-score"></div><div id="inj-label"></div><div id="inj-text"></div><div id="inj-bar"></div><div id="inj-badge"></div>

@@ -371,7 +371,6 @@ input[type="date"],input[type="number"]{font-family:var(--mono);font-size:.75rem
   .mob-btn{display:flex!important} #mob-menu-btn{display:flex!important}
   .sidebar{transform:translateX(-100%);transition:transform .22s cubic-bezier(.4,0,.2,1)}
   .sidebar.mob-open{transform:translateX(0);z-index:99}
-  #mob-overlay.show{display:block!important}
   .main{margin-left:0!important;padding:16px 14px 80px}
   #mob-overlay.show{display:block!important}
   .pg-head h1{font-size:1rem}
