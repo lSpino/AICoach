@@ -427,5 +427,41 @@
 
 
 
+<!-- Activity detail modal -->
+<div id="activity-modal" class="modal-ov" style="display:none">
+  <div class="modal-box" style="max-width:520px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div>
+        <div style="font-size:.65rem;color:var(--t2);text-transform:uppercase;letter-spacing:.8px" id="act-modal-sport"></div>
+        <div style="font-size:1rem;font-weight:700;margin-top:2px" id="act-modal-title"></div>
+        <div style="font-size:.65rem;color:var(--t2);margin-top:2px" id="act-modal-date"></div>
+      </div>
+      <button class="btn btn-ghost" onclick="closeActivityModal()" style="font-size:.7rem;flex-shrink:0">✕</button>
+    </div>
+    <!-- Metrics row -->
+    <div id="act-modal-metrics" class="log-metrics" style="margin-bottom:14px"></div>
+    <!-- Note field -->
+    <div style="margin-bottom:14px">
+      <label style="font-size:.62rem;color:var(--t2);text-transform:uppercase;letter-spacing:.7px;display:block;margin-bottom:5px">Note / Sensazioni</label>
+      <textarea id="act-modal-note" placeholder="Sensazioni, meteo, qualità sonno, come ti sei sentito..." style="width:100%;min-height:70px;background:var(--s1);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;font-size:.73rem;color:var(--t1);font-family:var(--f);resize:vertical"></textarea>
+      <button class="btn btn-ghost" onclick="saveActivityNote()" style="font-size:.68rem;margin-top:6px">Salva nota</button>
+    </div>
+    <!-- Splits table -->
+    <div id="act-modal-splits" style="display:none">
+      <div style="font-size:.62rem;color:var(--t2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Splits per km</div>
+      <table style="width:100%;border-collapse:collapse;font-size:.7rem" id="act-modal-splits-table">
+        <thead><tr style="color:var(--t2);font-size:.6rem">
+          <th style="text-align:left;padding:4px 6px;font-weight:500">Km</th>
+          <th style="text-align:right;padding:4px 6px;font-weight:500">Passo</th>
+          <th style="text-align:right;padding:4px 6px;font-weight:500">FC media</th>
+          <th style="text-align:right;padding:4px 6px;font-weight:500">FC max</th>
+          <th style="text-align:right;padding:4px 6px;font-weight:500">Cadenza</th>
+        </tr></thead>
+        <tbody id="act-modal-splits-body"></tbody>
+      </table>
+    </div>
+    <div id="act-modal-splits-loading" style="display:none;font-size:.7rem;color:var(--t2);padding:10px 0">Caricamento splits...</div>
+  </div>
+</div>
 </body>
 </html>

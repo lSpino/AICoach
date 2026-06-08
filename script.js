@@ -343,7 +343,14 @@ function buildSys(){
   var p=getProfile(),goals=getGoals(),logs=getLogs().slice(0,6);
   var ds=(p.disciplines&&p.disciplines.length)?p.disciplines.map(function(d){ return (d.inc===false?'[NO] ':'[SI] ')+d.sport+' '+(d.ore||'?')+'h giorni:'+((d.giorni&&d.giorni.join('/'))||'flex'); }).join(' | '):'?';
   var gs=goals.length?goals.map(function(g){ return g.prio.charAt(0)+':'+g.nome+' '+g.data+(g.target?' '+g.target:''); }).join(' | '):'Nessuno';
-  var ls=logs.length?logs.map(function(l){ return l.data+' '+l.tipo+(l.km?' '+l.km+'km':'')+(l.tss?' TSS'+l.tss:'')+(l.fc?' FC'+l.fc:'')+(l.note?' note:"'+l.note+'"':''); }).join(' | '):'Nessuno';
+  var ls=logs.length?logs.map(function(l){
+    var s=l.data+' '+l.tipo+(l.km?' '+l.km+'km':'')+(l.tss?' TSS'+l.tss:'')+(l.fc?' FC'+l.fc:'')+(l.note?' note:"'+l.note+'"':'');
+    if(l.splits&&l.splits.length){
+      function fp(sec){return sec?Math.floor(sec/60)+':'+(sec%60<10?'0':'')+sec%60:'?';}
+      s+=' splits:['+l.splits.map(function(sp,i){return 'km'+(i+1)+':'+fp(sp.passo)+(sp.fc?'/'+sp.fc+'bpm':'');}).join(',')+']';
+    }
+    return s;
+  }).join(' | '):'Nessuno';
   return 'Coach endurance AI. Italiano, tecnico, conciso, no emoji.\nAtleta: '+(p.nome||'?')+' '+(p.eta||'?')+'anni '+(p.peso||'?')+'kg '+(p.livello||'?')+'\nFisio: FCmax='+(p.fcmax||'?')+' FCSoglia='+(p.fcsoglia||'?')+' FTP='+(p.ftp||'?')+'W Ritmo='+(p.ritmo||'?')+'/km\nDiscipline: '+ds+'\nObiettivi: '+gs+'\nUltimi all.: '+ls;
 }
 
@@ -784,7 +791,7 @@ function renderLogs(filterArg){
     var tssNum = l.tss||0;
     var tssColor = tssNum===0?'var(--t3)':tssNum<60?'var(--gn)':tssNum<100?'var(--acc-l)':tssNum<140?'var(--am)':'var(--rd)';
 
-    html += '<div class="log-card" data-lid="'+l.id+'">';
+    html += '<div class="log-card" data-lid="'+l.id+'" onclick="openActivityModal('+JSON.stringify(l.id)+')" style="cursor:pointer">';
     html += '<button class="log-del ldel" data-lid="'+l.id+'">×</button>';
     html += '<div class="log-card-top">';
     html += '<div style="display:flex;align-items:flex-start;gap:10px">';
@@ -816,6 +823,90 @@ function renderLogs(filterArg){
   });
 }
 renderLogs();
+
+// ── Activity Detail Modal ─────────────────────
+var _actModalId = null;
+window.openActivityModal = function(lid){
+  var logs = getLogs();
+  var l = logs.filter(function(x){ return String(x.id)===String(lid); })[0];
+  if(!l) return;
+  _actModalId = lid;
+  // Fill header
+  var cat=(function(s){ s=(s||'').toLowerCase(); if(/swim|nuoto/.test(s))return 'Nuoto'; if(/run|corsa|trail/.test(s))return 'Corsa'; if(/ride|bici|cycling/.test(s))return 'Ciclismo'; return l.tipo||'Allenamento'; })(l.sport||l.tipo||'');
+  document.getElementById('act-modal-sport').textContent = cat + (l.fonte==='strava'?' · Strava':'');
+  document.getElementById('act-modal-title').textContent = l.titolo||l.tipo||'Allenamento';
+  document.getElementById('act-modal-date').textContent = l.data||'';
+  // Metrics
+  var m='';
+  if(l.km||l.distanza) m+='<div class="log-metric"><strong>'+(l.km?l.km+' km':l.distanza)+'</strong><span>Distanza</span></div>';
+  if(l.durata) m+='<div class="log-metric"><strong>'+l.durata+'</strong><span>Durata</span></div>';
+  if(l.fc) m+='<div class="log-metric"><strong>'+l.fc+' bpm</strong><span>FC media</span></div>';
+  if(l.fcMax) m+='<div class="log-metric"><strong>'+l.fcMax+' bpm</strong><span>FC max</span></div>';
+  if(l.passo) m+='<div class="log-metric"><strong>'+l.passo+'</strong><span>Passo</span></div>';
+  if(l.power) m+='<div class="log-metric"><strong>'+l.power+'W</strong><span>Potenza</span></div>';
+  if(l.tss) m+='<div class="log-metric"><strong>'+l.tss+'</strong><span>TSS</span></div>';
+  if(l.elevation||l.d) m+='<div class="log-metric"><strong>'+(l.elevation||l.d)+'m</strong><span>D+</span></div>';
+  document.getElementById('act-modal-metrics').innerHTML = m;
+  // Note
+  document.getElementById('act-modal-note').value = l.note||'';
+  // Splits
+  var splitsDiv = document.getElementById('act-modal-splits');
+  var splitsBody = document.getElementById('act-modal-splits-body');
+  var splitsLoading = document.getElementById('act-modal-splits-loading');
+  splitsDiv.style.display = 'none';
+  splitsBody.innerHTML = '';
+  // If cached splits exist show them
+  if(l.splits && l.splits.length){
+    renderSplits(l.splits);
+  } else if(l.fonte==='strava' && l.stravaId){
+    splitsLoading.style.display = 'block';
+    var serverUrl = getServerUrl();
+    var userId = getUserId();
+    fetch(serverUrl+'/api/strava/streams?activityId='+l.stravaId+'&userId='+userId)
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        splitsLoading.style.display='none';
+        if(d.splits && d.splits.length){
+          // Cache in log entry
+          var logs2=getLogs();
+          var idx=-1; logs2.forEach(function(x,i){ if(String(x.id)===String(lid)) idx=i; });
+          if(idx>=0){ logs2[idx].splits=d.splits; saveLogs(logs2); }
+          renderSplits(d.splits);
+        }
+      })
+      .catch(function(){ splitsLoading.style.display='none'; });
+  }
+  // Show modal
+  document.getElementById('activity-modal').style.display='flex';
+  document.getElementById('activity-modal').onclick=function(e){ if(e.target===this) closeActivityModal(); };
+};
+
+function renderSplits(splits){
+  var body = document.getElementById('act-modal-splits-body');
+  function fmtPace(secs){ if(!secs) return '—'; return Math.floor(secs/60)+':'+(secs%60<10?'0':'')+secs%60; }
+  body.innerHTML = splits.map(function(s,i){
+    return '<tr style="border-top:1px solid var(--line)">'+
+      '<td style="padding:5px 6px;color:var(--t2)">'+( s.distanza?s.distanza+' km':'Km '+(i+1))+'</td>'+
+      '<td style="padding:5px 6px;text-align:right;font-weight:600">'+fmtPace(s.passo)+'/km</td>'+
+      '<td style="padding:5px 6px;text-align:right;color:'+(s.fc?'var(--t1)':'var(--t3)')+'">'+( s.fc?s.fc+' bpm':'—')+'</td>'+
+      '<td style="padding:5px 6px;text-align:right;color:var(--t2)">'+( s.fcMax?s.fcMax+' bpm':'—')+'</td>'+
+      '<td style="padding:5px 6px;text-align:right;color:var(--t2)">'+( s.cadenza?s.cadenza+'spm':'—')+'</td>'+
+      '</tr>';
+  }).join('');
+  document.getElementById('act-modal-splits').style.display='block';
+}
+
+window.saveActivityNote = function(){
+  var note = document.getElementById('act-modal-note').value.trim();
+  var logs = getLogs();
+  var idx=-1; logs.forEach(function(x,i){ if(String(x.id)===String(_actModalId)) idx=i; });
+  if(idx>=0){ logs[idx].note=note; saveLogs(logs); renderLogs(); toast('Nota salvata'); }
+};
+
+window.closeActivityModal = function(){
+  document.getElementById('activity-modal').style.display='none';
+};
+
 
 // ── Upload ────────────────────────────────────
 $('uploadZone').onclick=function(){ $('imgInput').click(); };
@@ -890,34 +981,42 @@ function getDefaultPrompt(){
   var discs=p.disciplines||[];
   var incl=discs.filter(function(d){return d.inc!==false;});
   var inclStr=incl.map(function(d){
-    return d.sport+' '+(d.ore||'?')+('h/sett giorni:'+(d.giorni&&d.giorni.length?d.giorni.join('/'):'?'));
+    return d.sport+' '+(d.ore||'?')+'h/sett giorni:'+(d.giorni&&d.giorni.length?d.giorni.join('/'):'-');
   }).join(' | ')||'Nessuna';
   var exclStr=discs.filter(function(d){return d.inc===false;}).map(function(d){return d.sport;}).join(', ')||'Nessuna';
   var goalStr=goals.length?goals.map(function(g){return '['+g.prio+'] '+g.nome+' '+g.data;}).join(', '):'Nessuno';
-  var allDow=[]; incl.forEach(function(d){ (d.giorni||[]).forEach(function(g){ var i=DN.indexOf(g); if(i>=0&&allDow.indexOf(i)<0) allDow.push(i); }); });
+  // Find first training day >= today
+  var allDow=[];
+  incl.forEach(function(d){ (d.giorni||[]).forEach(function(g){ var idx=DN.indexOf(g); if(idx>=0&&allDow.indexOf(idx)<0) allDow.push(idx); }); });
   var todayDow=(today.getDay()+6)%7, skip=0;
   for(var di=0;di<7;di++){ if(allDow.indexOf((todayDow+di)%7)>=0){ skip=di; break; } }
   var startDate=new Date(today); startDate.setDate(today.getDate()+skip);
   var startStr=startDate.toISOString().split('T')[0];
   var pg=goals.filter(function(g){return g.prio==='A';}).sort(function(a,b){return new Date(a.data)-new Date(b.data);})[0]||goals[0];
   var weeks=pg?Math.max(2,Math.round((new Date(pg.data)-startDate)/604800000)):8;
-  var params='ritmo soglia '+(p.ritmo||'4:30')+'/km | FTP '+(p.ftp||'220')+('W | FC soglia '+(p.fcsoglia||'170')+'bpm');
-  // Build explicit date->sport mapping for week 1 as anchor
-  var weekMap=[];
+  var params='ritmo soglia '+(p.ritmo||'4:30')+'/km | FTP '+(p.ftp||'220')+'W | FC soglia '+(p.fcsoglia||'170')+'bpm';
+  // Build EXPLICIT date list for every day of week 1
+  var cal=[];
   for(var ex=0;ex<7;ex++){
-    var exD=new Date(startDate); exD.setDate(startDate.getDate()+ex);
-    var exDow=(exD.getDay()+6)%7;
+    var d2=new Date(startDate); d2.setDate(startDate.getDate()+ex);
+    var dow=(d2.getDay()+6)%7;
     var sports=[];
-    incl.forEach(function(d){ if((d.giorni||[]).indexOf(DN[exDow])>=0) sports.push(d.sport); });
-    weekMap.push(exD.toISOString().split('T')[0]+' ('+DN[exDow]+'): '+(sports.length?sports.join('+'):'Riposo'));
+    incl.forEach(function(d){ if((d.giorni||[]).indexOf(DN[dow])>=0) sports.push(d.sport); });
+    cal.push(d2.toISOString().split('T')[0]+' '+DN[dow]+': '+(sports.length?sports.join('+'):'RIPOSO'));
   }
-  return 'Genera piano COMPLETO di '+weeks+' settimane dal '+startStr+'.\n\
-\nCALENDARIO SETTIMANA 1 (ripeti uguale ogni settimana):\n'+weekMap.join('\n')+'\n\
-\nOBIETTIVI: '+goalStr+'\nDISCIPLINE:\n'+inclStr+'\nESCLUSE: '+exclStr+'\nATLETA: '+params+'\n\
-\nREGOLE: 1) Usa ESATTAMENTE le date del calendario sopra. 2) Ripeti lo stesso pattern ogni settimana incrementando le date di 7 giorni. 3) Genera TUTTE le '+weeks+' settimane. 4) Progressione con tapering finale.\n\
-\nRispondi SOLO con array JSON grezzo. Formato:\n\
-[{"data":"YYYY-MM-DD","titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n\
-Riposo: {"data":"YYYY-MM-DD","titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
+  var prompt='Genera piano COMPLETO di '+weeks+' settimane.\n\n';
+  prompt+='SETTIMANA 1 - CALENDARIO ESATTO (ripeti ogni 7 giorni incrementando le date):\n';
+  prompt+=cal.join('\n');
+  prompt+='\n\nIMPORTANTE: usa SOLO le date elencate sopra come giorni di allenamento. Non aggiungere altri giorni.\n\n';
+  prompt+='OBIETTIVI: '+goalStr+'\n';
+  prompt+='DISCIPLINE: '+inclStr+'\n';
+  prompt+='ESCLUSE: '+exclStr+'\n';
+  prompt+='ATLETA: '+params+'\n\n';
+  prompt+='Genera TUTTE le '+weeks+' settimane con progressione e tapering finale.\n\n';
+  prompt+='Rispondi SOLO con array JSON grezzo. Formato ogni giorno:\n';
+  prompt+='[{"data":"YYYY-MM-DD","titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n';
+  prompt+='Riposo: {"data":"YYYY-MM-DD","titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
+  return prompt;
 }
 
 function showCoachReport(session){

@@ -160,5 +160,37 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  // GET /api/strava/streams?activityId=xxx  → lap/splits data
+  if (url.startsWith('/api/strava/streams')) {
+    const actId = p.get('activityId');
+    if (!actId) return res.status(400).json({ error: 'activityId mancante' });
+    const tok = await refreshToken(uid);
+    if (!tok) return res.status(401).json({ error: 'Non autenticato' });
+    try {
+      // Fetch laps (pace + HR per lap/km)
+      const lapsR = await fetch(
+        'https://www.strava.com/api/v3/activities/' + actId + '/laps',
+        { headers: { Authorization: 'Bearer ' + tok.access_token } }
+      );
+      const laps = await lapsR.json();
+      if (!Array.isArray(laps)) return res.status(500).json({ error: 'Risposta laps non valida' });
+      const splits = laps.map(function(l) {
+        return {
+          lap: l.lap_index || 0,
+          distanza: l.distance ? parseFloat((l.distance/1000).toFixed(2)) : null,
+          durata: l.moving_time ? Math.round(l.moving_time) : null,
+          passo: l.moving_time && l.distance ? (Math.round(l.moving_time / (l.distance/1000))) : null,
+          fc: l.average_heartrate ? Math.round(l.average_heartrate) : null,
+          fcMax: l.max_heartrate ? Math.round(l.max_heartrate) : null,
+          cadenza: l.average_cadence ? Math.round(l.average_cadence*2) : null,
+          potenza: l.average_watts ? Math.round(l.average_watts) : null
+        };
+      });
+      return res.status(200).json({ splits });
+    } catch(e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   return res.status(404).json({ error: 'Route non trovata', url });
 };
