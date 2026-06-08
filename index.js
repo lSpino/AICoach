@@ -167,25 +167,56 @@ module.exports = async function handler(req, res) {
     const tok = await refreshToken(uid);
     if (!tok) return res.status(401).json({ error: 'Non autenticato' });
     try {
-      // Fetch laps (pace + HR per lap/km)
+      // Try laps first
       const lapsR = await fetch(
         'https://www.strava.com/api/v3/activities/' + actId + '/laps',
         { headers: { Authorization: 'Bearer ' + tok.access_token } }
       );
       const laps = await lapsR.json();
-      if (!Array.isArray(laps)) return res.status(500).json({ error: 'Risposta laps non valida' });
-      const splits = laps.map(function(l) {
-        return {
-          lap: l.lap_index || 0,
-          distanza: l.distance ? parseFloat((l.distance/1000).toFixed(2)) : null,
-          durata: l.moving_time ? Math.round(l.moving_time) : null,
-          passo: l.moving_time && l.distance ? (Math.round(l.moving_time / (l.distance/1000))) : null,
-          fc: l.average_heartrate ? Math.round(l.average_heartrate) : null,
-          fcMax: l.max_heartrate ? Math.round(l.max_heartrate) : null,
-          cadenza: l.average_cadence ? Math.round(l.average_cadence*2) : null,
-          potenza: l.average_watts ? Math.round(l.average_watts) : null
-        };
-      });
+
+      // Build splits from laps if we have meaningful data (>1 lap or has pace info)
+      let splits = [];
+      if (Array.isArray(laps) && laps.length > 0) {
+        splits = laps.map(function(l) {
+          const distKm = l.distance ? l.distance / 1000 : null;
+          return {
+            lap: l.lap_index || 0,
+            distanza: distKm ? parseFloat(distKm.toFixed(2)) : null,
+            durata: l.moving_time ? Math.round(l.moving_time) : null,
+            passo: l.moving_time && distKm ? Math.round(l.moving_time / distKm) : null,
+            fc: l.average_heartrate ? Math.round(l.average_heartrate) : null,
+            fcMax: l.max_heartrate ? Math.round(l.max_heartrate) : null,
+            cadenza: l.average_cadence ? Math.round(l.average_cadence * 2) : null,
+            potenza: l.average_watts ? Math.round(l.average_watts) : null
+          };
+        });
+      }
+
+      // Fallback: if only 1 lap (whole activity) or no splits with pace, use splits_metric from activity detail
+      const noUsefulLaps = splits.length === 0 || (splits.length === 1 && !splits[0].passo) || splits.every(function(s){ return !s.passo; });
+      if (noUsefulLaps) {
+        const actR = await fetch(
+          'https://www.strava.com/api/v3/activities/' + actId,
+          { headers: { Authorization: 'Bearer ' + tok.access_token } }
+        );
+        const act = await actR.json();
+        if (act && Array.isArray(act.splits_metric) && act.splits_metric.length > 0) {
+          splits = act.splits_metric.map(function(s, i) {
+            const distKm = s.distance ? s.distance / 1000 : null;
+            return {
+              lap: i + 1,
+              distanza: distKm ? parseFloat(distKm.toFixed(2)) : null,
+              durata: s.moving_time ? Math.round(s.moving_time) : null,
+              passo: s.moving_time && distKm ? Math.round(s.moving_time / distKm) : null,
+              fc: s.average_heartrate ? Math.round(s.average_heartrate) : null,
+              fcMax: s.max_heartrate ? Math.round(s.max_heartrate) : null,
+              cadenza: s.average_cadence ? Math.round(s.average_cadence * 2) : null,
+              potenza: s.average_watts ? Math.round(s.average_watts) : null
+            };
+          });
+        }
+      }
+
       return res.status(200).json({ splits });
     } catch(e) {
       return res.status(500).json({ error: e.message });

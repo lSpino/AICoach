@@ -674,18 +674,20 @@ function renderPlanUI(days){
     if(week[0]&&week[0].data){ var wd=new Date(week[0].data); wLabel='Sett.'+(wi/7+1)+' — '+wd.getDate()+'/'+(wd.getMonth()+1); }
     html+='<div style="margin-bottom:1.5rem"><div style="font-size:.6rem;color:var(--t2);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:center"><span>'+wLabel+'</span><span style="color:var(--acc-l)">TSS '+weekTss+'</span></div>';
     week.forEach(function(d,i){
-      var dow=DAYS7[i%7];
-      var dateObj=d.data?new Date(d.data):null;
+      var dateObj=d.data?new Date(d.data+'T12:00:00'):null;
+      var dow=dateObj?DAYS7[(dateObj.getDay()+6)%7]:DAYS7[i%7];
       var isToday=dateObj&&dateObj.toDateString()===now.toDateString();
+      var isRace=d.tipo&&d.tipo.toLowerCase()==='gara';
       var isRest=!d.tipo||d.tipo.toLowerCase().indexOf('riposo')>=0;
-      var tss=d.tss||0,col=tssHex(tss),blocchi=Array.isArray(d.blocchi)?d.blocchi:[];
+      var tss=d.tss||0,col=isRace?'#FC4C02':tssHex(tss),blocchi=Array.isArray(d.blocchi)?d.blocchi:[];
       var pillsHtml='';
       if(!isRest&&blocchi.length){ pillsHtml='<div class="wf">'; blocchi.forEach(function(b,bi){ pillsHtml+='<span class="wf-pill '+pillClass(b.tipo)+'">'+b.testo+'</span>'; if(bi<blocchi.length-1) pillsHtml+='<span class="wf-plus">+</span>'; }); pillsHtml+='</div>'; }
       var descHtml=(!isRest&&d.descrizione)?'<div class="wf-desc">'+d.descrizione+'</div>':'';
       var zoneTags=''; var _zones=d.zone?(Array.isArray(d.zone)?d.zone:[d.zone]):[]; _zones.forEach(function(z){ zoneTags+='<span class="pdc-tag '+zoneClass(z)+'">'+z+'</span>'; });
       var objTag=d.obiettivo?'<span class="pdc-tag obj-tag">'+d.obiettivo+'</span>':'';
       var dateLabel=dateObj?(dateObj.getDate()+'/'+(dateObj.getMonth()+1)):(wi+i+1);
-      html+='<div class="pdc'+(isToday?' today-card':'')+(isRest?' rest-card':'')+'"><div class="pdc-top"><div><div class="pdc-dow">'+dow+'</div><div class="pdc-date">'+dateLabel+'</div>'+(isToday?'<div class="pdc-today-pill">oggi</div>':'')+'</div><div class="pdc-right">'+(isRest?'<div style="font-size:.68rem;color:var(--t3)">Riposo</div>':'<div class="pdc-tss-num" style="color:'+col+'">'+tss+'</div><div class="pdc-tss-lbl">TSS</div><div class="pdc-tss-bar"><div class="pdc-tss-fill" style="width:'+Math.round(tss/maxTss*100)+'%;background:'+col+'"></div></div>'+(d.distanza?'<div class="pdc-dist">'+d.distanza+'</div>':''))+'</div></div><div class="pdc-disc">'+(d.disciplina||'Riposo')+'</div><div class="pdc-title">'+(d.titolo||'Riposo')+'</div>'+pillsHtml+descHtml+'<div class="pdc-tags">'+zoneTags+objTag+'</div></div>';
+      var raceTag=isRace?'<span class="pdc-tag" style="background:rgba(252,76,2,.18);color:#FC4C02;border:1px solid rgba(252,76,2,.3)">\uD83C\uDFC1 GARA</span>':'';
+      html+='<div class="pdc'+(isToday?' today-card':'')+(isRest?' rest-card':'')+(isRace?' race-card':'')+'"><div class="pdc-top"><div><div class="pdc-dow">'+dow+'</div><div class="pdc-date">'+dateLabel+'</div>'+(isToday?'<div class="pdc-today-pill">oggi</div>':'')+(isRace?'<div class="pdc-today-pill" style="background:rgba(252,76,2,.18);color:#FC4C02">gara</div>':'')+'</div><div class="pdc-right">'+(isRest?'<div style="font-size:.68rem;color:var(--t3)">Riposo</div>':'<div class="pdc-tss-num" style="color:'+col+'">'+tss+'</div><div class="pdc-tss-lbl">TSS</div><div class="pdc-tss-bar"><div class="pdc-tss-fill" style="width:'+Math.round(tss/maxTss*100)+'%;background:'+col+'"></div></div>'+(d.distanza?'<div class="pdc-dist">'+d.distanza+'</div>':''))+'</div></div><div class="pdc-disc">'+(d.disciplina||'Riposo')+'</div><div class="pdc-title">'+(d.titolo||'Riposo')+'</div>'+pillsHtml+descHtml+'<div class="pdc-tags">'+raceTag+zoneTags+objTag+'</div></div>';
     });
     html+='</div>';
   }
@@ -1012,9 +1014,15 @@ function getDefaultPrompt(){
   prompt+='\n\nOBIETTIVI: '+goalStr+'\n';
   prompt+='ATLETA: '+params+'\n\n';
   prompt+='Progressione su '+(pg?Math.round(totalDays/7):8)+' settimane con tapering finale.\n\n';
-  prompt+='Rispondi SOLO con array JSON grezzo. Formato ogni giorno:\n';
+  if(pg){
+    prompt+='IMPORTANTE: l\'ULTIMO giorno del piano ('+pg.data+') È IL GIORNO DI GARA: '+pg.nome+'.\n';
+    prompt+='Quel giorno usa: tipo="gara", titolo="GARA: '+pg.nome+'", tss appropriato per la distanza, descrizione con istruzioni pre-gara (colazione, riscaldamento, strategia di gara).\n';
+    prompt+='Il giorno prima della gara deve essere riposo o scarico leggero (tss max 30).\n\n';
+  }
+  prompt+='Rispondi SOLO con array JSON grezzo (no markdown, no testo prima o dopo). Formato ogni giorno:\n';
   prompt+='[{"data":"YYYY-MM-DD","titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n';
-  prompt+='Riposo: {"data":"YYYY-MM-DD","titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
+  prompt+='Riposo: {"data":"YYYY-MM-DD","titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}\n';
+  prompt+='Gara: {"data":"YYYY-MM-DD","titolo":"GARA: nome","disciplina":"Corsa","tipo":"gara","distanza":"42.2 km","durata":"3:30","tss":280,"zone":["Z4","Z5"],"obiettivo":"Completare sub 3:30","descrizione":"Colazione 3h prima: riso/pasta. Riscaldamento 10 min. Parti conservativo nei primi 10 km.","blocchi":[{"tipo":"warmup","testo":"10 min riscaldamento"},{"tipo":"main","testo":"Gara completa — attacca il target"},{"tipo":"cooldown","testo":"Defaticamento + stretching"}]}';
   return prompt;
 }
 
