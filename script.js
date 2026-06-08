@@ -161,10 +161,15 @@ $('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
       var existing=getLogs(); var existingIds=existing.map(function(l){ return l.stravaId; });
       var newActs=d.activities.filter(function(a){ return !existingIds.includes(a.stravaId); });
       newActs.forEach(function(a){
-        a.id = Date.now()+Math.random();
+        // Preserva stravaId PRIMA di assegnare il nuovo id locale
+        var sid = a.stravaId;
+        a.id     = Date.now() + Math.random();
+        a.stravaId = sid; // ripristina dopo sovrascrittura id
         a.tipo   = a.titolo || a.sport || 'Allenamento';
-        a.km     = a.distanza ? parseFloat(a.distanza) : (a.km||null);
+        // km già numerico dal server; distanza è stringa "12.3 km" — normalizza
+        if(!a.km && a.distanza) a.km = parseFloat(a.distanza);
         a.fonte  = 'strava';
+        a.source = 'strava';
         existing.unshift(a);
       });
       saveLogs(existing); renderLogs(); renderHome(); drawCharts();
@@ -894,14 +899,31 @@ window.openActivityModal = function(lid){
 
 function renderSplits(splits){
   var body = document.getElementById('act-modal-splits-body');
-  function fmtPace(secs){ if(!secs) return '—'; return Math.floor(secs/60)+':'+(secs%60<10?'0':'')+secs%60; }
+  function fmtPace(secs){
+    if(!secs || secs <= 0) return '—';
+    var s = Math.round(secs);
+    var mm = Math.floor(s/60);
+    var ss = s % 60;
+    return mm + ':' + (ss < 10 ? '0' : '') + ss;
+  }
+  function fmtDurata(secs){
+    if(!secs || secs <= 0) return '—';
+    var s = Math.round(secs);
+    var mm = Math.floor(s/60);
+    var ss = s % 60;
+    return mm + "'" + (ss > 0 ? (ss < 10 ? '0' : '') + ss + '"' : '');
+  }
   body.innerHTML = splits.map(function(s,i){
+    // Colore passo: verde=veloce, arancio=medio, rosso=lento (riferimento 5:00/km)
+    var pace = s.passo || 0;
+    var paceColor = !pace ? 'var(--t3)' : pace < 270 ? '#00d68f' : pace < 360 ? 'var(--acc-l)' : '#f59e0b';
     return '<tr style="border-top:1px solid var(--line)">'+
-      '<td style="padding:5px 6px;color:var(--t2)">'+( s.distanza?s.distanza+' km':'Km '+(i+1))+'</td>'+
-      '<td style="padding:5px 6px;text-align:right;font-weight:600">'+fmtPace(s.passo)+'/km</td>'+
+      '<td style="padding:5px 6px;color:var(--t2);font-size:.72rem">'+(s.distanza ? s.distanza+' km' : 'Km '+(i+1))+'</td>'+
+      '<td style="padding:5px 6px;text-align:right;font-weight:600;color:'+paceColor+'">'+fmtPace(pace)+'/km</td>'+
+      '<td style="padding:5px 6px;text-align:right;font-size:.72rem;color:var(--t2)">'+fmtDurata(s.durata)+'</td>'+
       '<td style="padding:5px 6px;text-align:right;color:'+(s.fc?'var(--t1)':'var(--t3)')+'">'+( s.fc?s.fc+' bpm':'—')+'</td>'+
       '<td style="padding:5px 6px;text-align:right;color:var(--t2)">'+( s.fcMax?s.fcMax+' bpm':'—')+'</td>'+
-      '<td style="padding:5px 6px;text-align:right;color:var(--t2)">'+( s.cadenza?s.cadenza+'spm':'—')+'</td>'+
+      '<td style="padding:5px 6px;text-align:right;color:var(--t2)">'+( s.cadenza?s.cadenza+'spm':'—')+( s.potenza?' · '+s.potenza+'W':'')+'</td>'+
       '</tr>';
   }).join('');
   document.getElementById('act-modal-splits').style.display='block';
