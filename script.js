@@ -855,26 +855,35 @@ window.openActivityModal = function(lid){
   var splitsLoading = document.getElementById('act-modal-splits-loading');
   splitsDiv.style.display = 'none';
   splitsBody.innerHTML = '';
+  splitsLoading.style.display = 'none';
   // If cached splits exist show them
   if(l.splits && l.splits.length){
     renderSplits(l.splits);
-  } else if(l.fonte==='strava' && l.stravaId){
-    splitsLoading.style.display = 'block';
+  } else if((l.fonte==='strava'||l.source==='strava') && l.stravaId){
     var serverUrl = getServerUrl();
-    var userId = getUserId();
-    fetch(serverUrl+'/api/strava/streams?activityId='+l.stravaId+'&userId='+userId)
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        splitsLoading.style.display='none';
-        if(d.splits && d.splits.length){
-          // Cache in log entry
-          var logs2=getLogs();
-          var idx=-1; logs2.forEach(function(x,i){ if(String(x.id)===String(lid)) idx=i; });
-          if(idx>=0){ logs2[idx].splits=d.splits; saveLogs(logs2); }
-          renderSplits(d.splits);
-        }
-      })
-      .catch(function(){ splitsLoading.style.display='none'; });
+    if(!serverUrl){
+      splitsLoading.style.display='block';
+      splitsLoading.textContent='Configura il Server URL nelle impostazioni per caricare gli splits.';
+    } else {
+      splitsLoading.style.display = 'block';
+      splitsLoading.textContent = 'Caricamento splits da Strava...';
+      var userId = getUserId();
+      fetch(serverUrl+'/api/strava/streams?activityId='+l.stravaId+'&userId='+userId)
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          splitsLoading.style.display='none';
+          if(d.splits && d.splits.length){
+            var logs2=getLogs();
+            var idx=-1; logs2.forEach(function(x,i){ if(String(x.id)===String(lid)) idx=i; });
+            if(idx>=0){ logs2[idx].splits=d.splits; saveLogs(logs2); }
+            renderSplits(d.splits);
+          } else {
+            splitsLoading.style.display='block';
+            splitsLoading.textContent='Nessun split disponibile per questa attività.';
+          }
+        })
+        .catch(function(e){ splitsLoading.style.display='block'; splitsLoading.textContent='Errore caricamento splits: '+e.message; });
+    }
   }
   // Show modal
   document.getElementById('activity-modal').style.display='flex';
@@ -980,39 +989,29 @@ function getDefaultPrompt(){
   var today=new Date();
   var discs=p.disciplines||[];
   var incl=discs.filter(function(d){return d.inc!==false;});
-  var inclStr=incl.map(function(d){
-    return d.sport+' '+(d.ore||'?')+'h/sett giorni:'+(d.giorni&&d.giorni.length?d.giorni.join('/'):'-');
-  }).join(' | ')||'Nessuna';
-  var exclStr=discs.filter(function(d){return d.inc===false;}).map(function(d){return d.sport;}).join(', ')||'Nessuna';
   var goalStr=goals.length?goals.map(function(g){return '['+g.prio+'] '+g.nome+' '+g.data;}).join(', '):'Nessuno';
-  // Find first training day >= today
+  var params='ritmo soglia '+(p.ritmo||'4:30')+'/km | FTP '+(p.ftp||'220')+'W | FC soglia '+(p.fcsoglia||'170')+'bpm';
   var allDow=[];
   incl.forEach(function(d){ (d.giorni||[]).forEach(function(g){ var idx=DN.indexOf(g); if(idx>=0&&allDow.indexOf(idx)<0) allDow.push(idx); }); });
   var todayDow=(today.getDay()+6)%7, skip=0;
   for(var di=0;di<7;di++){ if(allDow.indexOf((todayDow+di)%7)>=0){ skip=di; break; } }
   var startDate=new Date(today); startDate.setDate(today.getDate()+skip);
-  var startStr=startDate.toISOString().split('T')[0];
   var pg=goals.filter(function(g){return g.prio==='A';}).sort(function(a,b){return new Date(a.data)-new Date(b.data);})[0]||goals[0];
-  var weeks=pg?Math.max(2,Math.round((new Date(pg.data)-startDate)/604800000)):8;
-  var params='ritmo soglia '+(p.ritmo||'4:30')+'/km | FTP '+(p.ftp||'220')+'W | FC soglia '+(p.fcsoglia||'170')+'bpm';
-  // Build EXPLICIT date list for every day of week 1
-  var cal=[];
-  for(var ex=0;ex<7;ex++){
-    var d2=new Date(startDate); d2.setDate(startDate.getDate()+ex);
+  var totalDays=pg?Math.max(14,Math.ceil((new Date(pg.data)-startDate)/86400000)):56;
+  var allDays=[];
+  for(var di=0;di<totalDays;di++){
+    var d2=new Date(startDate); d2.setDate(startDate.getDate()+di);
     var dow=(d2.getDay()+6)%7;
     var sports=[];
     incl.forEach(function(d){ if((d.giorni||[]).indexOf(DN[dow])>=0) sports.push(d.sport); });
-    cal.push(d2.toISOString().split('T')[0]+' '+DN[dow]+': '+(sports.length?sports.join('+'):'RIPOSO'));
+    allDays.push(d2.toISOString().split('T')[0]+'|'+DN[dow]+'|'+(sports.length?sports.join('+'):'Riposo'));
   }
-  var prompt='Genera piano COMPLETO di '+weeks+' settimane.\n\n';
-  prompt+='SETTIMANA 1 - CALENDARIO ESATTO (ripeti ogni 7 giorni incrementando le date):\n';
-  prompt+=cal.join('\n');
-  prompt+='\n\nIMPORTANTE: usa SOLO le date elencate sopra come giorni di allenamento. Non aggiungere altri giorni.\n\n';
-  prompt+='OBIETTIVI: '+goalStr+'\n';
-  prompt+='DISCIPLINE: '+inclStr+'\n';
-  prompt+='ESCLUSE: '+exclStr+'\n';
+  var prompt='Genera piano di allenamento. Per ogni giorno ti fornisco la data e la disciplina.\n\n';
+  prompt+='GIORNI (data|giorno|sport, Riposo=riposo obbligatorio):\n';
+  prompt+=allDays.join('\n');
+  prompt+='\n\nOBIETTIVI: '+goalStr+'\n';
   prompt+='ATLETA: '+params+'\n\n';
-  prompt+='Genera TUTTE le '+weeks+' settimane con progressione e tapering finale.\n\n';
+  prompt+='Progressione su '+(pg?Math.round(totalDays/7):8)+' settimane con tapering finale.\n\n';
   prompt+='Rispondi SOLO con array JSON grezzo. Formato ogni giorno:\n';
   prompt+='[{"data":"YYYY-MM-DD","titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n';
   prompt+='Riposo: {"data":"YYYY-MM-DD","titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
