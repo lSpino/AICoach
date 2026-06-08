@@ -356,7 +356,7 @@ function renderDiscs(){
   disciplines.forEach(function(d,i){
     var inc=d.inc!==false;
     var opts=SPORTS.map(function(s){ return '<option'+(d.sport===s?' selected':'')+'>'+s+'</option>'; }).join('');
-    var chks=DAYS7.map(function(day){ return '<label style="display:flex;align-items:center;gap:4px;font-size:.68rem;color:var(--t2);cursor:pointer"><input type="checkbox" class="dchk" data-i="'+i+'" data-day="'+day+'"'+((d.giorni||[]).indexOf(day)>=0?' checked':'')+' style="width:auto;padding:0;accent-color:var(--acc-l)"> '+day+'</label>'; }).join('');
+    var chks=DAYS7.map(function(day){ var on=(d.giorni||[]).indexOf(day)>=0; return '<button type="button" class="day-tog" data-i="'+i+'" data-day="'+day+'" style="padding:3px 9px;font-size:.66rem;border-radius:5px;font-family:var(--f);cursor:pointer;border:1px solid '+(on?'var(--acc-l)':'var(--line2)')+';background:'+(on?'var(--acc2)':'transparent')+';color:'+(on?'var(--acc-l)':'var(--t2)')+'">'+day+'</button>'; }).join('');
     html+='<div class="disc-card"><button class="btn-del drm" data-i="'+i+'" style="position:absolute;top:9px;right:10px">×</button>'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.625rem"><div style="font-size:.65rem;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.6px">Disciplina '+(i+1)+'</div>'
       +'<label style="display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none"><span style="font-size:.65rem;color:'+(inc?'#00d68f':'rgba(255,255,255,.14)')+';font-weight:500">'+(inc?'Inclusa nel piano':'Esclusa')+'</span>'
@@ -375,7 +375,7 @@ function renderDiscs(){
   el.querySelectorAll('.dore').forEach(function(s){ s.oninput=function(){ disciplines[+this.dataset.i].ore=this.value; }; });
   el.querySelectorAll('.dsess').forEach(function(s){ s.oninput=function(){ disciplines[+this.dataset.i].sessioni=this.value; }; });
   el.querySelectorAll('.dinj').forEach(function(s){ s.oninput=function(){ disciplines[+this.dataset.i].infortuni=this.value; }; });
-  el.querySelectorAll('.dchk').forEach(function(c){ c.onchange=function(){ var i=+this.dataset.i,day=this.dataset.day; if(!disciplines[i].giorni) disciplines[i].giorni=[]; if(this.checked){ if(disciplines[i].giorni.indexOf(day)<0) disciplines[i].giorni.push(day); } else { disciplines[i].giorni=disciplines[i].giorni.filter(function(d){ return d!==day; }); } }; });
+  el.querySelectorAll('.day-tog').forEach(function(b){ b.onclick=function(e){ e.preventDefault(); var i=+this.dataset.i,day=this.dataset.day; if(!disciplines[i].giorni) disciplines[i].giorni=[]; var idx=disciplines[i].giorni.indexOf(day); if(idx<0) disciplines[i].giorni.push(day); else disciplines[i].giorni.splice(idx,1); renderDiscs(); }; });
 }
 $('btn-add-disc').onclick=function(){ disciplines.push({sport:SPORTS[0],ore:'',sessioni:'',giorni:[],infortuni:'',inc:true}); renderDiscs(); };
 
@@ -884,24 +884,30 @@ window.onresize=function(){ if(document.querySelector('#tab-home.active')) drawC
 
 function getDefaultPrompt(){
   var p=getProfile(), goals=getGoals();
-  var DAYNAMES=['Lunedi','Martedi','Mercoledi','Giovedi','Venerdi','Sabato','Domenica'];
+  var DN=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+  var today=new Date();
   var discs=p.disciplines||[];
-  var inclStr=discs.filter(function(d){return d.inc!==false;}).map(function(d){
-    var days=d.giorni&&d.giorni.length?d.giorni.join('/'):'-';
-    return d.sport+' '+(d.ore||'?')+'h/sett giorni:'+days;
+  var incl=discs.filter(function(d){return d.inc!==false;});
+  var inclStr=incl.map(function(d){
+    return d.sport+' '+(d.ore||'?')+'h/sett giorni:'+(d.giorni&&d.giorni.length?d.giorni.join('/'):'-');
   }).join(' | ')||'Nessuna';
   var exclStr=discs.filter(function(d){return d.inc===false;}).map(function(d){return d.sport;}).join(', ')||'Nessuna';
   var goalStr=goals.length?goals.map(function(g){return '['+g.prio+'] '+g.nome+' '+g.data;}).join(', '):'Nessuno';
+  // Find first training day >= today
+  var allDow=[]; incl.forEach(function(d){ (d.giorni||[]).forEach(function(g){ var i=DN.indexOf(g); if(i>=0&&allDow.indexOf(i)<0) allDow.push(i); }); });
+  var todayDow=(today.getDay()+6)%7, skip=0;
+  for(var di=0;di<7;di++){ if(allDow.indexOf((todayDow+di)%7)>=0){ skip=di; break; } }
+  var startDate=new Date(today); startDate.setDate(today.getDate()+skip);
+  var startStr=startDate.toISOString().split('T')[0];
+  var pg=goals.filter(function(g){return g.prio==='A';}).sort(function(a,b){return new Date(a.data)-new Date(b.data);})[0]||goals[0];
+  var weeks=pg?Math.max(2,Math.round((new Date(pg.data)-startDate)/604800000)):8;
   var params='ritmo soglia '+(p.ritmo||'4:30')+'/km | FTP '+(p.ftp||'220')+'W | FC soglia '+(p.fcsoglia||'170')+'bpm';
-  return 'Genera un piano settimanale (7 giorni, lun-dom) basato esattamente su questi dati.\n\n'+
-    'OBIETTIVI: '+goalStr+'\n\n'+
-    'DISCIPLINE CON GIORNI SPECIFICI:\n'+inclStr+'\n\n'+
-    'DISCIPLINE ESCLUSE (quei giorni = Riposo):\n'+exclStr+'\n\n'+
-    'PARAMETRI ATLETA: '+params+'\n\n'+
-    'REGOLA ASSOLUTA: allena SOLO nei giorni indicati per ogni disciplina. Tutti gli altri giorni = Riposo obbligatorio.\n\n'+
-    'Rispondi SOLO con JSON grezzo valido. Niente testo, niente markdown. Formato esatto:\n'+
-    '[{"titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n\n'+
-    'Riposo: {"titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
+  return 'Genera piano COMPLETO di '+weeks+' settimane dal '+startStr+'.\n\n'+
+    'OBIETTIVI: '+goalStr+'\nDISCIPLINE:\n'+inclStr+'\nESCLUSE: '+exclStr+'\nATLETA: '+params+'\n\n'+
+    'REGOLE: 1) Inizia esattamente dal '+startStr+'. 2) Allena solo nei giorni indicati, tutti gli altri = Riposo. 3) Genera TUTTE le '+weeks+' settimane. 4) Progressione con tapering finale.\n\n'+
+    'Rispondi SOLO con array JSON grezzo (no testo, no markdown). Ogni giorno:\n'+
+    '[{"data":"YYYY-MM-DD","titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n'+
+    'Riposo: {"data":"YYYY-MM-DD","titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
 }
 
 function showCoachReport(session){
