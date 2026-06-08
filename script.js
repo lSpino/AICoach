@@ -343,7 +343,7 @@ function buildSys(){
   var p=getProfile(),goals=getGoals(),logs=getLogs().slice(0,6);
   var ds=(p.disciplines&&p.disciplines.length)?p.disciplines.map(function(d){ return (d.inc===false?'[NO] ':'[SI] ')+d.sport+' '+(d.ore||'?')+'h giorni:'+((d.giorni&&d.giorni.join('/'))||'flex'); }).join(' | '):'?';
   var gs=goals.length?goals.map(function(g){ return g.prio.charAt(0)+':'+g.nome+' '+g.data+(g.target?' '+g.target:''); }).join(' | '):'Nessuno';
-  var ls=logs.length?logs.map(function(l){ return l.data+' '+l.tipo+(l.km?' '+l.km+'km':'')+(l.tss?' TSS'+l.tss:''); }).join(' | '):'Nessuno';
+  var ls=logs.length?logs.map(function(l){ return l.data+' '+l.tipo+(l.km?' '+l.km+'km':'')+(l.tss?' TSS'+l.tss:'')+(l.fc?' FC'+l.fc:'')+(l.note?' note:"'+l.note+'"':''); }).join(' | '):'Nessuno';
   return 'Coach endurance AI. Italiano, tecnico, conciso, no emoji.\nAtleta: '+(p.nome||'?')+' '+(p.eta||'?')+'anni '+(p.peso||'?')+'kg '+(p.livello||'?')+'\nFisio: FCmax='+(p.fcmax||'?')+' FCSoglia='+(p.fcsoglia||'?')+' FTP='+(p.ftp||'?')+'W Ritmo='+(p.ritmo||'?')+'/km\nDiscipline: '+ds+'\nObiettivi: '+gs+'\nUltimi all.: '+ls;
 }
 
@@ -800,6 +800,7 @@ function renderLogs(filterArg){
     if(l.km||l.distanza) html += '<div class="log-metric"><strong>'+(l.km?l.km+' km':l.distanza)+'</strong><span>Distanza</span></div>';
     if(l.durata) html += '<div class="log-metric"><strong>'+l.durata+'</strong><span>Durata</span></div>';
     if(l.fc) html += '<div class="log-metric"><strong>'+l.fc+' bpm</strong><span>FC media</span></div>';
+    if(l.fcMax) html += '<div class="log-metric"><strong>'+l.fcMax+' bpm</strong><span>FC max</span></div>';
     if(l.passo) html += '<div class="log-metric"><strong>'+l.passo+'</strong><span>Passo</span></div>';
     if(l.power) html += '<div class="log-metric"><strong>'+l.power+'W</strong><span>Potenza</span></div>';
     if(l.elevation||l.d) html += '<div class="log-metric"><strong>'+(l.elevation||l.d)+'m</strong><span>D+</span></div>';
@@ -889,11 +890,10 @@ function getDefaultPrompt(){
   var discs=p.disciplines||[];
   var incl=discs.filter(function(d){return d.inc!==false;});
   var inclStr=incl.map(function(d){
-    return d.sport+' '+(d.ore||'?')+'h/sett giorni:'+(d.giorni&&d.giorni.length?d.giorni.join('/'):'-');
+    return d.sport+' '+(d.ore||'?')+('h/sett giorni:'+(d.giorni&&d.giorni.length?d.giorni.join('/'):'?'));
   }).join(' | ')||'Nessuna';
   var exclStr=discs.filter(function(d){return d.inc===false;}).map(function(d){return d.sport;}).join(', ')||'Nessuna';
   var goalStr=goals.length?goals.map(function(g){return '['+g.prio+'] '+g.nome+' '+g.data;}).join(', '):'Nessuno';
-  // Find first training day >= today
   var allDow=[]; incl.forEach(function(d){ (d.giorni||[]).forEach(function(g){ var i=DN.indexOf(g); if(i>=0&&allDow.indexOf(i)<0) allDow.push(i); }); });
   var todayDow=(today.getDay()+6)%7, skip=0;
   for(var di=0;di<7;di++){ if(allDow.indexOf((todayDow+di)%7)>=0){ skip=di; break; } }
@@ -901,13 +901,23 @@ function getDefaultPrompt(){
   var startStr=startDate.toISOString().split('T')[0];
   var pg=goals.filter(function(g){return g.prio==='A';}).sort(function(a,b){return new Date(a.data)-new Date(b.data);})[0]||goals[0];
   var weeks=pg?Math.max(2,Math.round((new Date(pg.data)-startDate)/604800000)):8;
-  var params='ritmo soglia '+(p.ritmo||'4:30')+'/km | FTP '+(p.ftp||'220')+'W | FC soglia '+(p.fcsoglia||'170')+'bpm';
-  return 'Genera piano COMPLETO di '+weeks+' settimane dal '+startStr+'.\n\n'+
-    'OBIETTIVI: '+goalStr+'\nDISCIPLINE:\n'+inclStr+'\nESCLUSE: '+exclStr+'\nATLETA: '+params+'\n\n'+
-    'REGOLE: 1) Inizia esattamente dal '+startStr+'. 2) Allena solo nei giorni indicati, tutti gli altri = Riposo. 3) Genera TUTTE le '+weeks+' settimane. 4) Progressione con tapering finale.\n\n'+
-    'Rispondi SOLO con array JSON grezzo (no testo, no markdown). Ogni giorno:\n'+
-    '[{"data":"YYYY-MM-DD","titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n'+
-    'Riposo: {"data":"YYYY-MM-DD","titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
+  var params='ritmo soglia '+(p.ritmo||'4:30')+'/km | FTP '+(p.ftp||'220')+('W | FC soglia '+(p.fcsoglia||'170')+'bpm');
+  // Build explicit date->sport mapping for week 1 as anchor
+  var weekMap=[];
+  for(var ex=0;ex<7;ex++){
+    var exD=new Date(startDate); exD.setDate(startDate.getDate()+ex);
+    var exDow=(exD.getDay()+6)%7;
+    var sports=[];
+    incl.forEach(function(d){ if((d.giorni||[]).indexOf(DN[exDow])>=0) sports.push(d.sport); });
+    weekMap.push(exD.toISOString().split('T')[0]+' ('+DN[exDow]+'): '+(sports.length?sports.join('+'):'Riposo'));
+  }
+  return 'Genera piano COMPLETO di '+weeks+' settimane dal '+startStr+'.\n\
+\nCALENDARIO SETTIMANA 1 (ripeti uguale ogni settimana):\n'+weekMap.join('\n')+'\n\
+\nOBIETTIVI: '+goalStr+'\nDISCIPLINE:\n'+inclStr+'\nESCLUSE: '+exclStr+'\nATLETA: '+params+'\n\
+\nREGOLE: 1) Usa ESATTAMENTE le date del calendario sopra. 2) Ripeti lo stesso pattern ogni settimana incrementando le date di 7 giorni. 3) Genera TUTTE le '+weeks+' settimane. 4) Progressione con tapering finale.\n\
+\nRispondi SOLO con array JSON grezzo. Formato:\n\
+[{"data":"YYYY-MM-DD","titolo":"str","disciplina":"Corsa","tipo":"volume","distanza":"10 km","durata":"50 min","tss":60,"zone":["Z2"],"obiettivo":"str","descrizione":"str","blocchi":[{"tipo":"warmup","testo":"2 km Z1"},{"tipo":"main","testo":"6 km Z2"},{"tipo":"cooldown","testo":"2 km Z1"}]}]\n\
+Riposo: {"data":"YYYY-MM-DD","titolo":"Riposo","disciplina":"Riposo","tipo":"riposo","distanza":"","durata":"","tss":0,"zone":[],"obiettivo":"","descrizione":"","blocchi":[]}';
 }
 
 function showCoachReport(session){

@@ -46,9 +46,11 @@ function mapActivity(a) {
     km:       a.distance ? parseFloat((a.distance / 1000).toFixed(1)) : null,
     durata:   a.moving_time ? Math.round(a.moving_time / 60) + ' min' : null,
     fc:       a.average_heartrate ? Math.round(a.average_heartrate) : null,
+    fcMax:    a.max_heartrate ? Math.round(a.max_heartrate) : null,
+    cadenza:  a.average_cadence ? Math.round(a.average_cadence) : null,
     tss:      a.moving_time ? Math.round((a.moving_time / 3600) * (a.average_heartrate || 140) / 1.5) : null,
     elevation:a.total_elevation_gain || null,
-    note:     'Da Strava · ' + (a.type || ''),
+    note:     a.description || ('Da Strava · ' + (a.type || '')),
     fonte:    'strava',
     source:   'strava'
   };
