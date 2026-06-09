@@ -1,23 +1,49 @@
 // Endurance Coach — Vercel Serverless API
-// Nessuna dipendenza esterna — memoria globale per i token
-
 const CLIENT_ID     = process.env.STRAVA_CLIENT_ID;
 const CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET;
 const BASE_URL      = process.env.BASE_URL;
 
-// Token store in memoria globale di Node
-// Persiste finché l'istanza è calda (~10 min idle su Vercel free)
+// Token store in memoria + ripristino da cookie
 const T = global.__tokens || (global.__tokens = {});
 
-// ── helpers ───────────────────────────────────────────
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Cookie');
 }
 
-async function refreshToken(userId) {
-  const tok = T[userId];
+// Serializza/deserializza token da cookie (base64 JSON, no crypto — ok per token Strava)
+function tokToB64(tok) {
+  return Buffer.from(JSON.stringify(tok)).toString('base64url');
+}
+function b64ToTok(s) {
+  try { return JSON.parse(Buffer.from(s, 'base64url').toString('utf8')); } catch(e) { return null; }
+}
+
+// Legge il token: prima memoria, poi cookie
+function getStoredToken(req, userId) {
+  if (T[userId]) return T[userId];
+  const raw = req.headers.cookie || '';
+  const match = raw.match(new RegExp('(?:^|; )tk_' + userId.replace(/[^a-zA-Z0-9_]/g,'') + '=([^;]+)'));
+  if (match) {
+    const tok = b64ToTok(match[1]);
+    if (tok) { T[userId] = tok; return tok; }
+  }
+  return null;
+}
+
+// Salva token in memoria + imposta cookie 6h
+function storeToken(res, userId, tok) {
+  T[userId] = tok;
+  const safeId = userId.replace(/[^a-zA-Z0-9_]/g, '');
+  res.setHeader('Set-Cookie',
+    'tk_' + safeId + '=' + tokToB64(tok) +
+    '; Max-Age=21600; Path=/; HttpOnly; SameSite=None; Secure'
+  );
+}
+
+async function refreshToken(req, res, userId) {
+  const tok = getStoredToken(req, userId);
   if (!tok) return null;
   if (Date.now() / 1000 < tok.expires_at - 60) return tok;
   try {
@@ -30,8 +56,9 @@ async function refreshToken(userId) {
       })
     });
     const d = await r.json();
-    T[userId] = { ...tok, access_token: d.access_token, refresh_token: d.refresh_token, expires_at: d.expires_at };
-    return T[userId];
+    const newTok = { ...tok, access_token: d.access_token, refresh_token: d.refresh_token, expires_at: d.expires_at };
+    storeToken(res, userId, newTok);
+    return newTok;
   } catch(e) { return tok; }
 }
 
@@ -56,30 +83,29 @@ function mapActivity(a) {
   };
 }
 
-// ── main handler ──────────────────────────────────────
 module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const url   = req.url || '';
-  const qs    = url.includes('?') ? url.split('?')[1] : '';
-  const p     = new URLSearchParams(qs);
-  const uid   = p.get('userId') || 'default';
+  const url = req.url || '';
+  const qs  = url.includes('?') ? url.split('?')[1] : '';
+  const p   = new URLSearchParams(qs);
+  const uid = p.get('userId') || 'default';
 
-  // GET /auth/strava  →  redirect a Strava
+  // GET /auth/strava
   if (url.startsWith('/auth/strava') && !url.startsWith('/auth/strava/callback')) {
     if (!CLIENT_ID) return res.status(500).send('STRAVA_CLIENT_ID non configurato');
     const dest = 'https://www.strava.com/oauth/authorize' +
-      '?client_id='     + CLIENT_ID +
+      '?client_id=' + CLIENT_ID +
       '&response_type=code' +
-      '&redirect_uri='  + encodeURIComponent(BASE_URL + '/auth/strava/callback') +
+      '&redirect_uri=' + encodeURIComponent(BASE_URL + '/auth/strava/callback') +
       '&scope=read,activity:read_all' +
-      '&state='         + uid;
+      '&state=' + uid;
     res.setHeader('Location', dest);
     return res.status(302).end();
   }
 
-  // GET /auth/strava/callback  →  scambia code con token
+  // GET /auth/strava/callback
   if (url.startsWith('/auth/strava/callback')) {
     const code  = p.get('code');
     const state = p.get('state') || 'default';
@@ -92,7 +118,8 @@ module.exports = async function handler(req, res) {
       });
       const d = await r.json();
       if (d.errors) throw new Error(d.message || JSON.stringify(d.errors));
-      T[state] = { access_token: d.access_token, refresh_token: d.refresh_token, expires_at: d.expires_at, athlete: d.athlete };
+      const tok = { access_token: d.access_token, refresh_token: d.refresh_token, expires_at: d.expires_at, athlete: d.athlete };
+      storeToken(res, state, tok);
       const nome = d.athlete.firstname;
       return res.status(200).send(`<!DOCTYPE html>
 <html><head><title>Connesso</title></head>
@@ -104,7 +131,8 @@ module.exports = async function handler(req, res) {
     localStorage.setItem('stravaConnected','true');
     localStorage.setItem('stravaAthleteName','${nome}');
     localStorage.setItem('stravaUserId','${state}');
-    if(window.opener) window.opener.postMessage({type:'strava_connected',name:'${nome}'},'*');
+    localStorage.setItem('userId','${state}');
+    if(window.opener) window.opener.postMessage({type:'strava_connected',name:'${nome}',userId:'${state}'},'*');
     setTimeout(function(){ window.close(); },2000);
   </script>
 </body></html>`);
@@ -115,14 +143,14 @@ module.exports = async function handler(req, res) {
 
   // GET /api/strava/status
   if (url.startsWith('/api/strava/status')) {
-    const tok = T[uid];
+    const tok = getStoredToken(req, uid);
     return res.status(200).json(tok ? { connected: true, athlete: tok.athlete } : { connected: false });
   }
 
   // GET /api/strava/activities
   if (url.startsWith('/api/strava/activities')) {
     const perPage = parseInt(p.get('perPage') || '60', 10);
-    const tok = await refreshToken(uid);
+    const tok = await refreshToken(req, res, uid);
     if (!tok) return res.status(401).json({ error: 'Non autenticato — riconnetti Strava' });
     try {
       const r = await fetch(
@@ -137,21 +165,20 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // GET /api/strava/streams?activityId=xxx  → lap/splits data
+  // GET /api/strava/streams?activityId=xxx
   if (url.startsWith('/api/strava/streams')) {
     const actId = p.get('activityId');
     if (!actId) return res.status(400).json({ error: 'activityId mancante' });
-    const tok = await refreshToken(uid);
-    if (!tok) return res.status(401).json({ error: 'Non autenticato' });
+    const tok = await refreshToken(req, res, uid);
+    if (!tok) return res.status(401).json({ error: 'Non autenticato — riconnetti Strava' });
     try {
-      // Prima prova i laps (km personalizzati dall'atleta)
       const lapsR = await fetch(
         'https://www.strava.com/api/v3/activities/' + actId + '/laps',
         { headers: { Authorization: 'Bearer ' + tok.access_token } }
       );
       const laps = await lapsR.json();
-
       let splits = [];
+
       if (Array.isArray(laps) && laps.length > 0) {
         splits = laps.map(function(l) {
           const distKm = l.distance ? l.distance / 1000 : null;
@@ -168,10 +195,9 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      // Fallback: se c'è solo 1 lap (attività intera) o nessun passo, usa splits_metric
       const noUsefulLaps = splits.length === 0 ||
         (splits.length === 1 && !splits[0].passo) ||
-        splits.every(function(s){ return !s.passo; });
+        splits.every(function(s) { return !s.passo; });
 
       if (noUsefulLaps) {
         const actR = await fetch(
@@ -205,10 +231,12 @@ module.exports = async function handler(req, res) {
   // DELETE /api/strava/disconnect
   if (url.startsWith('/api/strava/disconnect')) {
     delete T[uid];
+    const safeId = uid.replace(/[^a-zA-Z0-9_]/g, '');
+    res.setHeader('Set-Cookie', 'tk_' + safeId + '=; Max-Age=0; Path=/');
     return res.status(200).json({ ok: true });
   }
 
-  // POST /api/ai  →  proxy Anthropic
+  // POST /api/ai
   if (url.startsWith('/api/ai')) {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return res.status(500).json({ error: 'ANTHROPIC_API_KEY non configurata' });
