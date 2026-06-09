@@ -91,7 +91,7 @@ module.exports = async function handler(req, res) {
     localStorage.setItem('stravaAthleteName','${nome}');
     localStorage.setItem('stravaUserId','${state}');
     localStorage.setItem('userId','${state}');
-    if(window.opener) window.opener.postMessage({type:'strava_connected',name:'${nome}',userId:'${state}'},'*');
+    if(window.opener) window.opener.postMessage({type:'strava_connected',name:'${nome}',userId:'${state}',accessToken:'${d.access_token}'},'*');
     setTimeout(function(){ window.close(); },2000);
   </script>
 </body></html>`);
@@ -118,7 +118,11 @@ module.exports = async function handler(req, res) {
   if (url.startsWith('/api/strava/streams')) {
     const actId = p.get('activityId');
     if (!actId) return res.status(400).json({ error: 'activityId mancante' });
-    const tok = await refreshToken(uid);
+    let tok = await refreshToken(uid);
+    // Fallback: usa accessToken passato direttamente dal frontend (cold start)
+    if (!tok && p.get('accessToken')) {
+      tok = { access_token: p.get('accessToken'), expires_at: Infinity };
+    }
     if (!tok) return res.status(401).json({ error: 'Non autenticato — riconnetti Strava' });
     try {
       const lapsR = await fetch('https://www.strava.com/api/v3/activities/'+actId+'/laps', { headers: { Authorization: 'Bearer '+tok.access_token } });

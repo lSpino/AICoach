@@ -192,6 +192,7 @@ window.addEventListener('message', function(e){
     localStorage.setItem('stravaConnected','true');
     if(e.data.name) localStorage.setItem('stravaAthleteName', e.data.name);
     if(e.data.userId){ localStorage.setItem('stravaUserId', e.data.userId); localStorage.setItem('userId', e.data.userId); }
+    if(e.data.accessToken) localStorage.setItem('stravaAccessToken', e.data.accessToken);
     toast('Strava connesso! Benvenuto '+e.data.name);
     checkStravaStatus();
     renderHome();
@@ -875,18 +876,12 @@ window.openActivityModal = function(lid){
     } else {
       splitsLoading.style.display = 'block';
       splitsLoading.textContent = 'Caricamento splits da Strava...';
-      var userId = localStorage.getItem('stravaUserId') || getUserId();
-      fetch(serverUrl+'/api/strava/streams?activityId='+l.stravaId+'&userId='+userId)
+      var userId = getUserId();
+      var accessToken = localStorage.getItem('stravaAccessToken') || '';
+      fetch(serverUrl+'/api/strava/streams?activityId='+l.stravaId+'&userId='+userId+(accessToken?'&accessToken='+encodeURIComponent(accessToken):''))
         .then(function(r){ return r.json(); })
         .then(function(d){
           splitsLoading.style.display='none';
-          if(d.error){
-            splitsLoading.style.display='block';
-            splitsLoading.textContent=d.error.indexOf('autenticat')>=0
-              ? 'Sessione scaduta — riconnetti Strava nelle impostazioni.'
-              : 'Errore: '+d.error;
-            return;
-          }
           if(d.splits && d.splits.length){
             var logs2=getLogs();
             var idx=-1; logs2.forEach(function(x,i){ if(String(x.id)===String(lid)) idx=i; });
@@ -897,7 +892,7 @@ window.openActivityModal = function(lid){
             splitsLoading.textContent='Nessun split disponibile per questa attività.';
           }
         })
-        .catch(function(e){ splitsLoading.style.display='block'; splitsLoading.textContent='Errore: '+e.message; });
+        .catch(function(e){ splitsLoading.style.display='block'; splitsLoading.textContent='Errore caricamento splits: '+e.message; });
     }
   }
   // Show modal
@@ -908,48 +903,31 @@ window.openActivityModal = function(lid){
 function renderSplits(splits){
   var body = document.getElementById('act-modal-splits-body');
   function fmtPace(secs){
-    if(!secs||secs<=0) return '—';
-    var s=Math.round(secs),mm=Math.floor(s/60),ss=s%60;
-    return mm+':'+(ss<10?'0':'')+ss;
+    if(!secs || secs <= 0) return '—';
+    var s = Math.round(secs);
+    var mm = Math.floor(s/60);
+    var ss = s % 60;
+    return mm + ':' + (ss < 10 ? '0' : '') + ss;
   }
   function fmtDurata(secs){
-    if(!secs||secs<=0) return '—';
-    var s=Math.round(secs),mm=Math.floor(s/60),ss=s%60;
-    return mm+"'"+(ss>0?(ss<10?'0':'')+ss+'"':'');
+    if(!secs || secs <= 0) return '—';
+    var s = Math.round(secs);
+    var mm = Math.floor(s/60);
+    var ss = s % 60;
+    return mm + "'" + (ss > 0 ? (ss < 10 ? '0' : '') + ss + '"' : '');
   }
-  var paces=splits.map(function(s){return s.passo||0;}).filter(function(p){return p>0;});
-  var minPace=paces.length?Math.min.apply(null,paces):0;
-  var maxPace=paces.length?Math.max.apply(null,paces):1;
-  var paceRange=maxPace-minPace||1;
-  body.innerHTML=splits.map(function(s,i){
-    var pace=s.passo||0;
-    var paceColor=!pace?'var(--t3)':pace<270?'#00d68f':pace<330?'var(--acc-l)':pace<390?'#f59e0b':'#f87171';
-    var fcColor=!s.fc?'var(--t3)':s.fc<140?'#00d68f':s.fc<160?'#f59e0b':'#f87171';
-    var barPct=pace>0?Math.round(30+((pace-minPace)/paceRange)*70):0;
-    var extra=[];
-    if(s.durata) extra.push(fmtDurata(s.durata));
-    if(s.cadenza) extra.push(s.cadenza+'spm');
-    if(s.potenza) extra.push(s.potenza+'W');
-    if(s.fcMax) extra.push('max '+s.fcMax);
-    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--line)">'+
-      '<div style="min-width:30px;font-size:.63rem;color:var(--t2);font-weight:600">'+(s.distanza?s.distanza+'km':'km'+(i+1))+'</div>'+
-      '<div style="flex:1">'+
-        '<div style="height:3px;border-radius:2px;background:var(--line);margin-bottom:5px;overflow:hidden">'+
-          '<div style="height:100%;width:'+barPct+'%;background:'+paceColor+';border-radius:2px"></div>'+
-        '</div>'+
-        '<div style="display:flex;align-items:baseline;gap:5px">'+
-          '<span style="font-size:.88rem;font-weight:700;color:'+paceColor+'">'+fmtPace(pace)+'</span>'+
-          '<span style="font-size:.58rem;color:var(--t3)">/km</span>'+
-          (extra.length?'<span style="font-size:.58rem;color:var(--t2);margin-left:2px">'+extra.join(' · ')+'</span>':'')+
-        '</div>'+
-      '</div>'+
-      '<div style="min-width:40px;text-align:right">'+
-        (s.fc?
-          '<div style="font-size:.8rem;font-weight:600;color:'+fcColor+'">'+s.fc+'</div>'+
-          '<div style="font-size:.52rem;color:var(--t3)">bpm</div>'
-        :'<div style="font-size:.72rem;color:var(--t3)">—</div>')+
-      '</div>'+
-    '</div>';
+  body.innerHTML = splits.map(function(s,i){
+    // Colore passo: verde=veloce, arancio=medio, rosso=lento (riferimento 5:00/km)
+    var pace = s.passo || 0;
+    var paceColor = !pace ? 'var(--t3)' : pace < 270 ? '#00d68f' : pace < 360 ? 'var(--acc-l)' : '#f59e0b';
+    return '<tr style="border-top:1px solid var(--line)">'+
+      '<td style="padding:5px 6px;color:var(--t2);font-size:.72rem">'+(s.distanza ? s.distanza+' km' : 'Km '+(i+1))+'</td>'+
+      '<td style="padding:5px 6px;text-align:right;font-weight:600;color:'+paceColor+'">'+fmtPace(pace)+'/km</td>'+
+      '<td style="padding:5px 6px;text-align:right;font-size:.72rem;color:var(--t2)">'+fmtDurata(s.durata)+'</td>'+
+      '<td style="padding:5px 6px;text-align:right;color:'+(s.fc?'var(--t1)':'var(--t3)')+'">'+( s.fc?s.fc+' bpm':'—')+'</td>'+
+      '<td style="padding:5px 6px;text-align:right;color:var(--t2)">'+( s.fcMax?s.fcMax+' bpm':'—')+'</td>'+
+      '<td style="padding:5px 6px;text-align:right;color:var(--t2)">'+( s.cadenza?s.cadenza+'spm':'—')+( s.potenza?' · '+s.potenza+'W':'')+'</td>'+
+      '</tr>';
   }).join('');
   document.getElementById('act-modal-splits').style.display='block';
 }
