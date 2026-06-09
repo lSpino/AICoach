@@ -6,10 +6,55 @@ function toast(m){ var t=$('toast'); t.textContent=m; t.classList.add('show'); s
 function getLogs(){ try{ return JSON.parse(localStorage.getItem('logs')||'[]'); }catch(e){ return []; } }
 function getGoals(){ try{ return JSON.parse(localStorage.getItem('goals')||'[]'); }catch(e){ return []; } }
 function getProfile(){ try{ return JSON.parse(localStorage.getItem('athlete')||'{}'); }catch(e){ return {}; } }
-function saveLogs(l){ l.sort(function(a,b){return new Date(b.data)-new Date(a.data);}); localStorage.setItem('logs',JSON.stringify(l)); }
-function saveGoals(g){ localStorage.setItem('goals',JSON.stringify(g)); }
+function saveLogs(l){
+  l.sort(function(a,b){return new Date(b.data)-new Date(a.data);});
+  localStorage.setItem('logs',JSON.stringify(l));
+  dbSave({logs:l});
+}
+function saveGoals(g){ localStorage.setItem('goals',JSON.stringify(g)); dbSave({goals:g}); }
 function getServerUrl(){ var saved=localStorage.getItem('serverUrl'); return saved||'https://ai-coach-brown.vercel.app'; }
-function getUserId(){ var id=localStorage.getItem('userId'); if(!id){ id='user_'+Math.random().toString(36).slice(2); localStorage.setItem('userId',id); } return id; }
+function getAthleteId(){ return localStorage.getItem('athleteId')||localStorage.getItem('stravaUserId')||localStorage.getItem('userId')||null; }
+function getUserId(){ return getAthleteId()||'default'; }
+
+// ── DB sync ───────────────────────────────────────────
+var _dbSaveTimer=null;
+function dbSave(data){
+  var aid=getAthleteId(); if(!aid) return;
+  var serverUrl=getServerUrl(); if(!serverUrl) return;
+  clearTimeout(_dbSaveTimer);
+  _dbSaveTimer=setTimeout(function(){
+    fetch(serverUrl+'/api/user/save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(Object.assign({athleteId:aid},data))
+    }).catch(function(){});
+  },1500);
+}
+
+function dbLoad(){
+  var aid=getAthleteId(); if(!aid) return;
+  var serverUrl=getServerUrl(); if(!serverUrl) return;
+  fetch(serverUrl+'/api/user/load?athleteId='+aid)
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.error) return;
+      var merged=false;
+      // Merge logs: server wins per stravaId, locale vince per log manuali recenti
+      if(d.logs&&d.logs.length){
+        var local=getLogs();
+        var serverIds=d.logs.map(function(l){return String(l.stravaId||l.id);});
+        var onlyLocal=local.filter(function(l){return !serverIds.includes(String(l.stravaId||l.id));});
+        var merged_logs=d.logs.concat(onlyLocal);
+        merged_logs.sort(function(a,b){return new Date(b.data)-new Date(a.data);});
+        localStorage.setItem('logs',JSON.stringify(merged_logs));
+        merged=true;
+      }
+      if(d.goals&&d.goals.length){ localStorage.setItem('goals',JSON.stringify(d.goals)); merged=true; }
+      if(d.plan){ localStorage.setItem('currentPlan',JSON.stringify(d.plan)); merged=true; }
+      if(merged){ renderHome(); drawCharts();
+// Carica dati dal server se utente già autenticato
+if(getAthleteId()) dbLoad(); }
+    }).catch(function(){});
+}
 
 var SPORTS=['Corsa','Bici / Ciclismo','Nuoto','Triathlon','Palestra / Forza','Trail Running','MTB','Sci di fondo','Altro'];
 var DAYS7=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
@@ -96,7 +141,7 @@ function checkStravaStatus(){
     return;
   }
   var userId=getUserId();
-  fetch(serverUrl+'/api/strava/status?userId='+userId)
+  fetch(serverUrl+'/api/strava/status?athleteId='+userId)
     .then(function(r){ return r.json(); })
     .then(function(d){
       if(d.connected){
@@ -154,7 +199,7 @@ $('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
   var serverUrl=getServerUrl(); if(!serverUrl) return;
   var userId=getUserId();
   $('strava-sync-status').textContent='Sincronizzazione in corso...';
-  fetch(serverUrl+'/api/strava/activities?userId='+userId+'&perPage=60')
+  fetch(serverUrl+'/api/strava/activities?athleteId='+userId+'&perPage=60')
     .then(function(r){ return r.json(); })
     .then(function(d){
       if(!d.activities) throw new Error('Nessuna attività');
@@ -191,10 +236,16 @@ window.addEventListener('message', function(e){
   if(e.data && e.data.type==='strava_connected'){
     localStorage.setItem('stravaConnected','true');
     if(e.data.name) localStorage.setItem('stravaAthleteName', e.data.name);
-    if(e.data.userId){ localStorage.setItem('stravaUserId',e.data.userId); localStorage.setItem('userId',e.data.userId); }
+    if(e.data.athleteId||e.data.userId){
+      var aid=e.data.athleteId||e.data.userId;
+      localStorage.setItem('athleteId',aid);
+      localStorage.setItem('stravaUserId',aid);
+      localStorage.setItem('userId',aid);
+    }
     if(e.data.accessToken) localStorage.setItem('stravaAccessToken',e.data.accessToken);
     toast('Strava connesso! Benvenuto '+e.data.name);
     checkStravaStatus();
+    dbLoad();
     renderHome();
   }
 });
@@ -501,7 +552,7 @@ function renderHome(){
   }
   var _btnDone=$('th-btn-done'), _btnMove=$('th-btn-move');
   if(_btnDone) _btnDone.onclick=function(){
-    if(_td&&_td.tss>0){ _td.done=true; localStorage.setItem('currentPlan',JSON.stringify(_plan)); toast('Sessione completata!'); setTimeout(function(){ showCoachReport(_td); },900); }
+    if(_td&&_td.tss>0){ _td.done=true; localStorage.setItem('currentPlan',JSON.stringify(_plan)); dbSave({plan:_plan}); toast('Sessione completata!'); setTimeout(function(){ showCoachReport(_td); },900); }
     else toast('Nessuna sessione oggi');
   };
   if(_btnMove) _btnMove.onclick=function(){ toast('Sessione spostata'); };
@@ -876,9 +927,9 @@ window.openActivityModal = function(lid){
     } else {
       splitsLoading.style.display = 'block';
       splitsLoading.textContent = 'Caricamento splits da Strava...';
-      var userId = localStorage.getItem('stravaUserId') || getUserId();
+      var userId = getAthleteId() || getUserId();
       var accessToken = localStorage.getItem('stravaAccessToken') || '';
-      fetch(serverUrl+'/api/strava/streams?activityId='+l.stravaId+'&userId='+userId+(accessToken?'&accessToken='+encodeURIComponent(accessToken):''))
+      fetch(serverUrl+'/api/strava/streams?activityId='+l.stravaId+'&athleteId='+userId+(accessToken?'&accessToken='+encodeURIComponent(accessToken):''))
         .then(function(r){ return r.json(); })
         .then(function(d){
           splitsLoading.style.display='none';
