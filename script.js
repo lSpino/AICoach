@@ -145,7 +145,7 @@ function disconnectStrava(){
   var dd=$('strava-dropdown'); if(dd) dd.style.display='none';
   updateStravaUI(false,'');
   if(!serverUrl) return;
-  fetch(serverUrl+'/api/strava/disconnect?userId='+getUserId(, {credentials:'include'}),{method:'DELETE'}).catch(function(){});
+  fetch(serverUrl+'/api/strava/disconnect?userId='+getUserId(), {credentials:'include', method:'DELETE'}).catch(function(){});
 }
 window.disconnectStrava=disconnectStrava;
 window.connectStrava=connectStrava;
