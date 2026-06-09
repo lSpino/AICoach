@@ -191,8 +191,8 @@ window.addEventListener('message', function(e){
   if(e.data && e.data.type==='strava_connected'){
     localStorage.setItem('stravaConnected','true');
     if(e.data.name) localStorage.setItem('stravaAthleteName', e.data.name);
-    if(e.data.userId){ localStorage.setItem('stravaUserId', e.data.userId); localStorage.setItem('userId', e.data.userId); }
-    if(e.data.accessToken) localStorage.setItem('stravaAccessToken', e.data.accessToken);
+    if(e.data.userId){ localStorage.setItem('stravaUserId',e.data.userId); localStorage.setItem('userId',e.data.userId); }
+    if(e.data.accessToken) localStorage.setItem('stravaAccessToken',e.data.accessToken);
     toast('Strava connesso! Benvenuto '+e.data.name);
     checkStravaStatus();
     renderHome();
@@ -876,7 +876,7 @@ window.openActivityModal = function(lid){
     } else {
       splitsLoading.style.display = 'block';
       splitsLoading.textContent = 'Caricamento splits da Strava...';
-      var userId = getUserId();
+      var userId = localStorage.getItem('stravaUserId') || getUserId();
       var accessToken = localStorage.getItem('stravaAccessToken') || '';
       fetch(serverUrl+'/api/strava/streams?activityId='+l.stravaId+'&userId='+userId+(accessToken?'&accessToken='+encodeURIComponent(accessToken):''))
         .then(function(r){ return r.json(); })
@@ -900,13 +900,71 @@ window.openActivityModal = function(lid){
         .catch(function(e){ splitsLoading.style.display='block'; splitsLoading.textContent='Errore: '+e.message; });
     }
   }
+  // Store for AI analysis
+  _currentActivityForAI = l;
+  // Reset AI panel
+  var aiResult=document.getElementById('act-modal-ai-result');
+  var aiBtn=document.getElementById('btn-analyze-activity');
+  if(aiResult){ aiResult.style.display='none'; aiResult.innerHTML=''; }
+  if(aiBtn){ aiBtn.disabled=false; aiBtn.textContent='✦ Analizza con AI'; }
   // Show modal
   document.getElementById('activity-modal').style.display='flex';
   document.getElementById('activity-modal').onclick=function(e){ if(e.target===this) closeActivityModal(); };
 };
 
+// ── Analisi AI singola attività ──────────────────────
+var _currentActivityForAI = null;
+
+function analyzeActivity(){
+  var btn=document.getElementById('btn-analyze-activity');
+  var result=document.getElementById('act-modal-ai-result');
+  if(!_currentActivityForAI){ result.style.display='block'; result.textContent='Errore: attività non trovata.'; return; }
+  var l=_currentActivityForAI;
+  btn.disabled=true; btn.textContent='Analisi in corso...';
+  result.style.display='block'; result.innerHTML='<span style="color:var(--t2)">Il coach sta analizzando...</span>';
+
+  var splitsText='';
+  if(l.splits&&l.splits.length){
+    splitsText='\nSplits km a km: '+l.splits.map(function(s,i){
+      var p=s.passo?Math.floor(s.passo/60)+':'+(s.passo%60<10?'0':'')+(s.passo%60):'—';
+      return 'km'+(i+1)+' passo '+p+(s.fc?' FC'+s.fc:'')+(s.fcMax?' max'+s.fcMax:'')+(s.cadenza?' cad'+s.cadenza:'');
+    }).join(', ');
+  }
+  var logs=getLogs().filter(function(x){return x.id!==l.id;}).slice(0,10);
+  var storico=logs.map(function(x){
+    return x.data+' '+(x.sport||x.tipo||'run')+' '+(x.distanza||'')+' '+(x.durata||'')+' FC'+(x.fc||'—')+' TSS'+(x.tss||0);
+  }).join('\n');
+  var sys='Sei un coach di endurance esperto. Rispondi sempre in italiano. Sii preciso, usa i dati numerici, non essere generico.';
+  var prompt='Analizza questa attività in dettaglio:\n'+
+    'Tipo: '+(l.sport||l.tipo||'corsa')+'\nData: '+(l.data||'')+'\n'+
+    'Distanza: '+(l.distanza||'—')+'\nDurata: '+(l.durata||'—')+'\n'+
+    'FC media: '+(l.fc||'—')+(l.fcMax?' / max '+l.fcMax:'')+' bpm\n'+
+    'TSS stimato: '+(l.tss||0)+(l.elevation?' · D+'+l.elevation+'m':'')+
+    (l.note&&l.note.indexOf('Da Strava')<0?'\nNote atleta: '+l.note:'')+
+    splitsText+
+    '\n\nStorico recente (ultime 10 sessioni):\n'+storico+
+    '\n\nFornisci un\'analisi strutturata:\n'+
+    '1. QUALITÀ SESSIONE: valuta intensità, distribuzione del passo, drift cardiaco dai splits\n'+
+    '2. PUNTI DI FORZA: cosa ha funzionato bene\n'+
+    '3. AREE DI MIGLIORAMENTO: cosa lavorare\n'+
+    '4. PROSSIMA SESSIONE: consiglio specifico per il prossimo allenamento\n'+
+    'Usa i numeri reali. Max 150 parole.';
+
+  callAI([{role:'user',content:prompt}],sys,600)
+    .then(function(txt){
+      btn.disabled=false; btn.textContent='✦ Rianalizza';
+      result.innerHTML=txt
+        .replace(/\n/g,'<br>')
+        .replace(/^(\d+\. [A-ZÀ-ÿ ]+:)/gm,'<strong style="color:var(--acc-l)">$1</strong>');
+    })
+    .catch(function(e){
+      btn.disabled=false; btn.textContent='✦ Analizza con AI';
+      result.textContent='Errore: '+e.message;
+    });
+}
+
 function renderSplits(splits){
-  var body = document.getElementById('act-modal-splits-body');
+  var body=document.getElementById('act-modal-splits-body');
   function fmtPace(secs){
     if(!secs||secs<=0) return '—';
     var s=Math.round(secs),mm=Math.floor(s/60),ss=s%60;
@@ -944,10 +1002,7 @@ function renderSplits(splits){
         '</div>'+
       '</div>'+
       '<div style="min-width:40px;text-align:right">'+
-        (s.fc?
-          '<div style="font-size:.8rem;font-weight:600;color:'+fcColor+'">'+s.fc+'</div>'+
-          '<div style="font-size:.52rem;color:var(--t3)">bpm</div>'
-        :'<div style="font-size:.72rem;color:var(--t3)">—</div>')+
+        (s.fc?'<div style="font-size:.8rem;font-weight:600;color:'+fcColor+'">'+s.fc+'</div><div style="font-size:.52rem;color:var(--t3)">bpm</div>':'<div style="font-size:.72rem;color:var(--t3)">—</div>')+
       '</div>'+
     '</div>';
   }).join('');
@@ -1075,15 +1130,42 @@ function getDefaultPrompt(){
 
 function showCoachReport(session){
   var data=new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long'});
-  var analisi='Sessione completata. ';
-  if(session.tss>90) analisi+='Carico alto — recupero prioritario nelle prossime 24h.';
-  else if(session.tss>55) analisi+='Carico nella norma per questa fase del piano. Buon lavoro!';
-  else analisi+='Sessione leggera completata. Ottimo per il recupero attivo.';
-  var report={titolo:session.titolo||'Allenamento',data:data,read:false,analisi:analisi,
+  var report={titolo:session.titolo||'Allenamento',data:data,read:false,analisi:'Analisi in corso...',
     stats:[{val:session.distanza||'—',lbl:'distanza'},{val:session.durata||'—',lbl:'durata'},{val:String(session.tss||0),lbl:'TSS'}]};
   localStorage.setItem('lastCoachReport',JSON.stringify(report));
   if($('notif-dot')) $('notif-dot').classList.add('show');
   renderHome();
+  // Genera analisi AI
+  var logs=getLogs().slice(0,14);
+  var splitsText='';
+  if(session.splits&&session.splits.length){
+    splitsText='\nSplits km: '+session.splits.map(function(s,i){
+      var p=s.passo?Math.floor(s.passo/60)+':'+(s.passo%60<10?'0':'')+(s.passo%60):'—';
+      return 'km'+(i+1)+' '+p+(s.fc?' FC'+s.fc:'');
+    }).join(', ');
+  }
+  var storico=logs.filter(function(l){return l.id!==session.id;}).slice(0,7).map(function(l){
+    return l.data+' '+( l.sport||l.tipo||'run')+' '+(l.distanza||'')+' '+(l.durata||'')+' FC'+(l.fc||'—')+' TSS'+(l.tss||0);
+  }).join('\n');
+  var sys='Sei un coach di endurance esperto. Rispondi sempre in italiano. Sii diretto, concreto, usa dati numerici.';
+  var prompt='Attività appena completata:\n'+
+    'Tipo: '+(session.sport||session.tipo||'corsa')+'\n'+
+    'Distanza: '+(session.distanza||'—')+'\nDurata: '+(session.durata||'—')+'\n'+
+    'FC media: '+(session.fc||'—')+' bpm\nTSS: '+(session.tss||0)+
+    splitsText+
+    '\n\nUltime attività (storico):\n'+storico+
+    '\n\nScrivi un\'analisi strutturata in 3 parti:\n'+
+    '1. SINTESI: cosa è andato bene/male in questa sessione (2-3 frasi)\n'+
+    '2. TREND: cosa emerge dallo storico recente (1-2 frasi)\n'+
+    '3. CONSIGLIO: cosa fare nei prossimi 2-3 giorni (1-2 frasi)\n'+
+    'Usa i dati numerici. Sii diretto. Max 120 parole totali.';
+  callAI([{role:'user',content:prompt}],sys,500)
+    .then(function(txt){
+      report.analisi=txt;
+      localStorage.setItem('lastCoachReport',JSON.stringify(report));
+      var cb=$('cr-body'); if(cb) cb.innerHTML=txt.replace(/\n/g,'<br>').replace(/^(\d+\. [A-Z]+:)/gm,'<strong>$1</strong>');
+    })
+    .catch(function(e){ report.analisi='Analisi non disponibile: '+e.message; localStorage.setItem('lastCoachReport',JSON.stringify(report)); var cb=$('cr-body'); if(cb) cb.textContent=report.analisi; });
 }
 
 
