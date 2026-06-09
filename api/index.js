@@ -108,7 +108,13 @@ module.exports = async function handler(req, res) {
   const qs = rawUrl.includes('?') ? rawUrl.split('?')[1] : '';
   const p = new URLSearchParams(qs);
   const pathParam = p.get('path') || '';
-  const url = pathParam ? '/api/' + pathParam.replace(/^\/(api|auth)\//, '').replace(/^\//, '') : rawUrl.split('?')[0];
+  let url;
+  if (pathParam) {
+    const prefix = rawUrl.startsWith('/auth/') ? '/auth/' : '/api/';
+    url = prefix + pathParam.replace(/^\/(api|auth)\//, '').replace(/^\//, '');
+  } else {
+    url = rawUrl.split('?')[0];
+  }
   // athleteId è l'identificatore primario; fallback a userId per retrocompatibilità
   const athleteId = p.get('athleteId') || p.get('userId') || 'default';
 
