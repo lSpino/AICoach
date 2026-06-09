@@ -90,8 +90,20 @@ module.exports = async function handler(req, res) {
   const rawUrl = req.url || '';
   const qs  = rawUrl.includes('?') ? rawUrl.split('?')[1] : '';
   const p   = new URLSearchParams(qs);
-  const url = p.get('_path') || rawUrl.split('?')[0];
+  // Vercel rewrites: path originale è in req.url ma può essere sovrascritto; leggiamo anche x-invoke-path
+  const invokedPath = req.headers['x-invoke-path'] || '';
+  const url = invokedPath || rawUrl.split('?')[0];
   const uid = p.get('userId') || 'default';
+
+  // DEBUG: rimuovere dopo fix
+  if (url.includes('/api/debug')) {
+    return res.status(200).json({
+      url: req.url,
+      invokedPath: req.headers['x-invoke-path'] || null,
+      computedUrl: url,
+      allHeaders: Object.keys(req.headers)
+    });
+  }
 
   // GET /auth/strava
   if (url.startsWith('/auth/strava') && !url.startsWith('/auth/strava/callback')) {
