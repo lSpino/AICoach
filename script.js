@@ -1009,6 +1009,7 @@ function renderSplits(splits){
   document.getElementById('act-modal-splits').style.display='block';
 }
 
+window.analyzeActivity = analyzeActivity;
 window.saveActivityNote = function(){
   var note = document.getElementById('act-modal-note').value.trim();
   var logs = getLogs();
