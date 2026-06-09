@@ -96,7 +96,7 @@ function checkStravaStatus(){
     return;
   }
   var userId=getUserId();
-  fetch(serverUrl+'/api/strava/status?userId='+userId, {credentials:'include'})
+  fetch(serverUrl+'/api/strava/status?userId='+userId)
     .then(function(r){ return r.json(); })
     .then(function(d){
       if(d.connected){
@@ -145,7 +145,7 @@ function disconnectStrava(){
   var dd=$('strava-dropdown'); if(dd) dd.style.display='none';
   updateStravaUI(false,'');
   if(!serverUrl) return;
-  fetch(serverUrl+'/api/strava/disconnect?userId='+getUserId(), {credentials:'include', method:'DELETE'}).catch(function(){});
+  fetch(serverUrl+'/api/strava/disconnect?userId='+getUserId(),{method:'DELETE'}).catch(function(){});
 }
 window.disconnectStrava=disconnectStrava;
 window.connectStrava=connectStrava;
@@ -154,7 +154,7 @@ $('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
   var serverUrl=getServerUrl(); if(!serverUrl) return;
   var userId=getUserId();
   $('strava-sync-status').textContent='Sincronizzazione in corso...';
-  fetch(serverUrl+'/api/strava/activities?userId='+userId+'&perPage=60', {credentials:'include'})
+  fetch(serverUrl+'/api/strava/activities?userId='+userId+'&perPage=60')
     .then(function(r){ return r.json(); })
     .then(function(d){
       if(!d.activities) throw new Error('Nessuna attività');
@@ -876,7 +876,7 @@ window.openActivityModal = function(lid){
       splitsLoading.style.display = 'block';
       splitsLoading.textContent = 'Caricamento splits da Strava...';
       var userId = localStorage.getItem('stravaUserId') || getUserId();
-      fetch(serverUrl+'/api/strava/streams?activityId='+l.stravaId+'&userId='+userId, {credentials:'include'})
+      fetch(serverUrl+'/api/strava/streams?activityId='+l.stravaId+'&userId='+userId)
         .then(function(r){ return r.json(); })
         .then(function(d){
           splitsLoading.style.display='none';
