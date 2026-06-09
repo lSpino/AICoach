@@ -446,20 +446,10 @@
       <textarea id="act-modal-note" placeholder="Sensazioni, meteo, qualità sonno, come ti sei sentito..." style="width:100%;min-height:70px;background:var(--s1);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;font-size:.73rem;color:var(--t1);font-family:var(--f);resize:vertical"></textarea>
       <button class="btn btn-ghost" onclick="saveActivityNote()" style="font-size:.68rem;margin-top:6px">Salva nota</button>
     </div>
-    <!-- Splits table -->
+    <!-- Splits -->
     <div id="act-modal-splits" style="display:none">
-      <div style="font-size:.62rem;color:var(--t2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Splits per km</div>
-      <table style="width:100%;border-collapse:collapse;font-size:.7rem" id="act-modal-splits-table">
-        <thead><tr style="color:var(--t2);font-size:.6rem">
-          <th style="text-align:left;padding:4px 6px;font-weight:500">Km</th>
-          <th style="text-align:right;padding:4px 6px;font-weight:500">Passo</th>
-          <th style="text-align:right;padding:4px 6px;font-weight:500">Durata</th>
-          <th style="text-align:right;padding:4px 6px;font-weight:500">FC media</th>
-          <th style="text-align:right;padding:4px 6px;font-weight:500">FC max</th>
-          <th style="text-align:right;padding:4px 6px;font-weight:500">Cad./Pot.</th>
-        </tr></thead>
-        <tbody id="act-modal-splits-body"></tbody>
-      </table>
+      <div style="font-size:.62rem;color:var(--t2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">Splits per km</div>
+      <div id="act-modal-splits-body"></div>
     </div>
     <div id="act-modal-splits-loading" style="display:none;font-size:.7rem;color:var(--t2);padding:10px 0">Caricamento splits...</div>
   </div>
