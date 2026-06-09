@@ -30,6 +30,37 @@ function dbSave(data){
   },1500);
 }
 
+var _dbSettingsTimer=null;
+function dbSaveSettings(data){
+  var aid=getAthleteId(); if(!aid) return;
+  var serverUrl=getServerUrl(); if(!serverUrl) return;
+  clearTimeout(_dbSettingsTimer);
+  _dbSettingsTimer=setTimeout(function(){
+    fetch(serverUrl+'/api/user/settings/save',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(Object.assign({athleteId:aid},data))
+    }).catch(function(){});
+  },1500);
+}
+
+function dbLoadSettings(){
+  var aid=getAthleteId(); if(!aid) return;
+  var serverUrl=getServerUrl(); if(!serverUrl) return;
+  fetch(serverUrl+'/api/user/settings/load?athleteId='+aid)
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.error) return;
+      if(d.profile&&Object.keys(d.profile).length){
+        localStorage.setItem('athlete',JSON.stringify(d.profile));
+        loadProfile();
+      }
+      if(d.aiProvider){ localStorage.setItem('aiProvider',d.aiProvider); var el=$('ai-provider'); if(el) el.value=d.aiProvider; }
+      if(d.aiKey){ localStorage.setItem('aiKey',d.aiKey); var el=$('apikey'); if(el) el.value=d.aiKey; }
+      if(d.aiModel){ localStorage.setItem('aiModel',d.aiModel); var el=$('ai-model'); if(el) el.value=d.aiModel; }
+      if(d.customPrompt){ localStorage.setItem('customPlanPrompt',d.customPrompt); var el=$('custom-plan-prompt'); if(el) el.value=d.customPrompt; }
+    }).catch(function(){});
+}
+
 function dbLoad(){
   var aid=getAthleteId(); if(!aid) return;
   var serverUrl=getServerUrl(); if(!serverUrl) return;
@@ -52,7 +83,7 @@ function dbLoad(){
       if(d.plan){ localStorage.setItem('currentPlan',JSON.stringify(d.plan)); merged=true; }
       if(merged){ renderHome(); drawCharts();
 // Carica dati dal server se utente già autenticato
-if(getAthleteId()) dbLoad(); }
+if(getAthleteId()){ dbLoad(); dbLoadSettings(); } }
     }).catch(function(){});
 }
 
@@ -108,7 +139,7 @@ $('btn-close-settings').onclick=function(){
   if($('ai-model')&&$('ai-model').value.trim()) localStorage.setItem('aiModel',$('ai-model').value.trim());
   closeModal('settings-modal');
 };
-if($('btn-save-prompt')) $('btn-save-prompt').onclick=function(){ var v=$('custom-plan-prompt').value.trim(); if(v) localStorage.setItem('customPlanPrompt',v); else localStorage.removeItem('customPlanPrompt'); toast('Prompt salvato'); };
+if($('btn-save-prompt')) $('btn-save-prompt').onclick=function(){ var v=$('custom-plan-prompt').value.trim(); if(v) localStorage.setItem('customPlanPrompt',v); else localStorage.removeItem('customPlanPrompt'); dbSaveSettings({customPrompt:v||''}); toast('Prompt salvato'); };
 if($('btn-reset-prompt')) $('btn-reset-prompt').onclick=function(){ localStorage.removeItem('customPlanPrompt'); if($('custom-plan-prompt')) $('custom-plan-prompt').value=getDefaultPrompt(); toast('Prompt ripristinato'); };
 document.querySelectorAll('.modal-ov').forEach(function(m){ m.onclick=function(e){ if(e.target===m) m.classList.remove('open'); }; });
 
@@ -116,9 +147,9 @@ $('btn-save-server').onclick=function(){
   var url=$('server-url').value.trim().replace(/\/$/,'');
   if(url){ localStorage.setItem('serverUrl',url); toast('Server salvato'); checkStravaStatus(); }
 };
-if($('ai-provider')) $('ai-provider').onchange=function(){ localStorage.setItem('aiProvider',this.value); };
-if($('apikey')) $('apikey').oninput=function(){ localStorage.setItem('aiKey',this.value); };
-if($('ai-model')) $('ai-model').oninput=function(){ localStorage.setItem('aiModel',this.value); };
+if($('ai-provider')) $('ai-provider').onchange=function(){ localStorage.setItem('aiProvider',this.value); dbSaveSettings({aiProvider:this.value}); };
+if($('apikey')) $('apikey').oninput=function(){ localStorage.setItem('aiKey',this.value); dbSaveSettings({aiKey:this.value}); };
+if($('ai-model')) $('ai-model').oninput=function(){ localStorage.setItem('aiModel',this.value); dbSaveSettings({aiModel:this.value}); };
 // Load saved values into settings
 var _savedProvider=localStorage.getItem('aiProvider');
 var _savedKey=localStorage.getItem('aiKey');
@@ -246,6 +277,7 @@ window.addEventListener('message', function(e){
     toast('Strava connesso! Benvenuto '+e.data.name);
     checkStravaStatus();
     dbLoad();
+    dbLoadSettings();
     renderHome();
   }
 });
@@ -451,9 +483,7 @@ $('btn-save-profile').onclick=function(){
   p.disciplines=disciplines.map(function(d){ return Object.assign({},d); });
   localStorage.setItem('athlete',JSON.stringify(p));
   updateSb(); toast('Profilo salvato'); closeModal('profilo-modal');
-  // Sync profilo al server per feedback automatici
-  var serverUrl=getServerUrl();
-  if(serverUrl) fetch(serverUrl+'/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId:getUserId(),profile:p})}).catch(function(){});
+  dbSaveSettings({profile:p});
 };
 function loadProfile(){ var p=getProfile(); PF.forEach(function(f){ var e=$('p-'+f); if(e&&p[f]) e.value=p[f]; }); disciplines=(p.disciplines||[]).map(function(d){ return Object.assign({},d); }); renderDiscs(); updateSb(); }
 function updateSb(){ var p=getProfile(); if($('sb-name')) $('sb-name').textContent=p.nome||'Profilo'; $('sb-sport').textContent=(p.disciplines&&p.disciplines.length)?p.disciplines.map(function(d){ return d.sport; }).join(' · '):(p.livello||'Configura'); }

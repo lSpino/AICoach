@@ -29,6 +29,15 @@ async function dbInit() {
       plan        JSONB,
       updated_at  TIMESTAMPTZ DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS user_settings (
+      athlete_id     TEXT PRIMARY KEY REFERENCES users(athlete_id) ON DELETE CASCADE,
+      profile        JSONB DEFAULT '{}',
+      ai_provider    TEXT,
+      ai_key         TEXT,
+      ai_model       TEXT,
+      custom_prompt  TEXT,
+      updated_at     TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
 }
 
