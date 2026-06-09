@@ -36,7 +36,12 @@ function connectStravaFromOnboarding(){
 window.connectStravaFromOnboarding=connectStravaFromOnboarding;
 
 function getServerUrl(){ var saved=localStorage.getItem('serverUrl'); return saved||'https://ai-coach-brown.vercel.app'; }
-function getAthleteId(){ return localStorage.getItem('athleteId')||localStorage.getItem('stravaUserId')||localStorage.getItem('userId')||null; }
+function getAthleteId(){
+  // Restituisce solo ID Strava reali (numerici), non ID temporanei user_xxx
+  var aid=localStorage.getItem('athleteId')||localStorage.getItem('stravaUserId')||'';
+  if(aid && /^\d+$/.test(aid)) return aid;  // ID Strava è sempre numerico
+  return null;
+}
 function getUserId(){ return getAthleteId()||'default'; }
 
 // ── DB sync ───────────────────────────────────────────
