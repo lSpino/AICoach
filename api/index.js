@@ -287,6 +287,53 @@ module.exports = async function handler(req, res) {
   }
 
   // ── /api/ai ───────────────────────────────────────
+  // ── /api/user/settings/save ─────────────────────────
+  if (url.startsWith('/api/user/settings/save') && req.method === 'POST') {
+    try {
+      const body = typeof req.body==='string'?JSON.parse(req.body):(req.body||{});
+      const aid = body.athleteId || athleteId;
+      if (!aid||aid==='default') return res.status(400).json({ error: 'athleteId mancante' });
+      const db = getPool();
+      await db.query(`
+        INSERT INTO user_settings (athlete_id, profile, ai_provider, ai_key, ai_model, custom_prompt, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        ON CONFLICT (athlete_id) DO UPDATE SET
+          profile=COALESCE($2, user_settings.profile),
+          ai_provider=COALESCE($3, user_settings.ai_provider),
+          ai_key=COALESCE($4, user_settings.ai_key),
+          ai_model=COALESCE($5, user_settings.ai_model),
+          custom_prompt=COALESCE($6, user_settings.custom_prompt),
+          updated_at=NOW()
+      `, [aid,
+        body.profile ? JSON.stringify(body.profile) : null,
+        body.aiProvider || null,
+        body.aiKey || null,
+        body.aiModel || null,
+        body.customPrompt !== undefined ? body.customPrompt : null
+      ]);
+      return res.status(200).json({ ok: true });
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
+  // ── /api/user/settings/load ───────────────────────
+  if (url.startsWith('/api/user/settings/load')) {
+    try {
+      const aid = p.get('athleteId') || athleteId;
+      if (!aid||aid==='default') return res.status(400).json({ error: 'athleteId mancante' });
+      const db = getPool();
+      const r = await db.query('SELECT profile,ai_provider,ai_key,ai_model,custom_prompt FROM user_settings WHERE athlete_id=$1', [aid]);
+      if (!r.rows.length) return res.status(200).json({});
+      const row = r.rows[0];
+      return res.status(200).json({
+        profile: row.profile||{},
+        aiProvider: row.ai_provider||null,
+        aiKey: row.ai_key||null,
+        aiModel: row.ai_model||null,
+        customPrompt: row.custom_prompt||null
+      });
+    } catch(e) { return res.status(500).json({ error: e.message }); }
+  }
+
   if (url.startsWith('/api/ai')) {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return res.status(500).json({ error: 'ANTHROPIC_API_KEY non configurata' });
