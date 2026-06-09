@@ -87,9 +87,10 @@ module.exports = async function handler(req, res) {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const url = req.url || '';
-  const qs  = url.includes('?') ? url.split('?')[1] : '';
+  const rawUrl = req.url || '';
+  const qs  = rawUrl.includes('?') ? rawUrl.split('?')[1] : '';
   const p   = new URLSearchParams(qs);
+  const url = p.get('_path') || rawUrl.split('?')[0];
   const uid = p.get('userId') || 'default';
 
   // GET /auth/strava
