@@ -9,6 +9,46 @@
 </head>
 <body>
 
+<div id="onboarding-overlay" style="display:none;position:fixed;inset:0;z-index:200;background:var(--bg);overflow-y:auto">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px">
+    <div style="max-width:420px;width:100%;text-align:center">
+      <!-- Logo -->
+      <div style="font-size:2rem;font-weight:800;letter-spacing:-1px;margin-bottom:6px">Endurance<span style="color:var(--acc-l)">.</span></div>
+      <div style="font-size:.8rem;color:var(--t2);margin-bottom:40px">Il tuo coach AI per la corsa e il triathlon</div>
+      <!-- Steps -->
+      <div style="text-align:left;display:flex;flex-direction:column;gap:16px;margin-bottom:36px">
+        <div style="display:flex;align-items:flex-start;gap:14px;background:var(--s1);border:1px solid var(--line2);border-radius:12px;padding:14px 16px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--acc-l);color:#000;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">1</div>
+          <div>
+            <div style="font-size:.82rem;font-weight:600;margin-bottom:2px">Connetti Strava</div>
+            <div style="font-size:.72rem;color:var(--t2)">I tuoi allenamenti vengono importati automaticamente e i dati salvati nel cloud</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:14px;background:var(--s1);border:1px solid var(--line2);border-radius:12px;padding:14px 16px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--s2);color:var(--t2);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">2</div>
+          <div>
+            <div style="font-size:.82rem;font-weight:600;margin-bottom:2px">Completa il profilo</div>
+            <div style="font-size:.72rem;color:var(--t2)">FC massima, soglia, peso — il coach li usa per analisi personalizzate</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:14px;background:var(--s1);border:1px solid var(--line2);border-radius:12px;padding:14px 16px">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--s2);color:var(--t2);display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0">3</div>
+          <div>
+            <div style="font-size:.82rem;font-weight:600;margin-bottom:2px">Inizia ad allenarti</div>
+            <div style="font-size:.72rem;color:var(--t2)">Piano settimanale, analisi AI, splits e report coach — tutto in un posto</div>
+          </div>
+        </div>
+      </div>
+      <!-- CTA -->
+      <button onclick="connectStravaFromOnboarding()" style="width:100%;background:#FC4C02;border:none;color:#fff;font-size:.85rem;font-weight:700;padding:14px 20px;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.2px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+        Connetti Strava e inizia
+      </button>
+      <div style="margin-top:14px;font-size:.68rem;color:var(--t3)">Gratuito · I tuoi dati non vengono condivisi</div>
+    </div>
+  </div>
+</div>
+
 <div id="mob-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:98;backdrop-filter:blur(4px)"></div>
 <aside class="sidebar">
   <div class="sb-logo">
@@ -446,17 +486,22 @@
       <textarea id="act-modal-note" placeholder="Sensazioni, meteo, qualità sonno, come ti sei sentito..." style="width:100%;min-height:70px;background:var(--s1);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;font-size:.73rem;color:var(--t1);font-family:var(--f);resize:vertical"></textarea>
       <button class="btn btn-ghost" onclick="saveActivityNote()" style="font-size:.68rem;margin-top:6px">Salva nota</button>
     </div>
-    <!-- Splits -->
+    <!-- Splits table -->
     <div id="act-modal-splits" style="display:none">
-      <div style="font-size:.62rem;color:var(--t2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">Splits per km</div>
-      <div id="act-modal-splits-body"></div>
+      <div style="font-size:.62rem;color:var(--t2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Splits per km</div>
+      <table style="width:100%;border-collapse:collapse;font-size:.7rem" id="act-modal-splits-table">
+        <thead><tr style="color:var(--t2);font-size:.6rem">
+          <th style="text-align:left;padding:4px 6px;font-weight:500">Km</th>
+          <th style="text-align:right;padding:4px 6px;font-weight:500">Passo</th>
+          <th style="text-align:right;padding:4px 6px;font-weight:500">Durata</th>
+          <th style="text-align:right;padding:4px 6px;font-weight:500">FC media</th>
+          <th style="text-align:right;padding:4px 6px;font-weight:500">FC max</th>
+          <th style="text-align:right;padding:4px 6px;font-weight:500">Cad./Pot.</th>
+        </tr></thead>
+        <tbody id="act-modal-splits-body"></tbody>
+      </table>
     </div>
     <div id="act-modal-splits-loading" style="display:none;font-size:.7rem;color:var(--t2);padding:10px 0">Caricamento splits...</div>
-    <!-- AI Analysis -->
-    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
-      <button id="btn-analyze-activity" class="btn btn-primary" style="width:100%;font-size:.74rem" onclick="analyzeActivity()">&#x2726; Analizza con AI</button>
-      <div id="act-modal-ai-result" style="display:none;margin-top:12px;background:var(--s1);border-radius:10px;padding:12px 14px;font-size:.74rem;line-height:1.6;color:var(--t1)"></div>
-    </div>
   </div>
 </div>
 </body>

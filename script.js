@@ -12,6 +12,29 @@ function saveLogs(l){
   dbSave({logs:l});
 }
 function saveGoals(g){ localStorage.setItem('goals',JSON.stringify(g)); dbSave({goals:g}); }
+// ── Onboarding ────────────────────────────────────────
+function checkOnboarding(){
+  var aid=getAthleteId();
+  var ov=document.getElementById('onboarding-overlay');
+  if(!ov) return;
+  if(!aid){
+    ov.style.display='block';
+    document.body.style.overflow='hidden';
+  } else {
+    ov.style.display='none';
+    document.body.style.overflow='';
+  }
+}
+
+function connectStravaFromOnboarding(){
+  var serverUrl=getServerUrl();
+  if(!serverUrl){ alert('Server URL non configurato'); return; }
+  var uid=localStorage.getItem('userId')||('user_'+Math.random().toString(36).slice(2));
+  localStorage.setItem('userId',uid);
+  window.open(serverUrl+'/auth/strava?userId='+uid,'_blank','width=500,height=700');
+}
+window.connectStravaFromOnboarding=connectStravaFromOnboarding;
+
 function getServerUrl(){ var saved=localStorage.getItem('serverUrl'); return saved||'https://ai-coach-brown.vercel.app'; }
 function getAthleteId(){ return localStorage.getItem('athleteId')||localStorage.getItem('stravaUserId')||localStorage.getItem('userId')||null; }
 function getUserId(){ return getAthleteId()||'default'; }
@@ -32,14 +55,20 @@ function dbSave(data){
 
 var _dbSettingsTimer=null;
 function dbSaveSettings(data){
-  var aid=getAthleteId(); if(!aid) return;
-  var serverUrl=getServerUrl(); if(!serverUrl) return;
+  var aid=getAthleteId();
+  var serverUrl=getServerUrl();
+  console.log('[dbSaveSettings] aid='+aid+' url='+serverUrl, data);
+  if(!aid){ console.warn('[dbSaveSettings] no athleteId'); return; }
+  if(!serverUrl){ console.warn('[dbSaveSettings] no serverUrl'); return; }
   clearTimeout(_dbSettingsTimer);
   _dbSettingsTimer=setTimeout(function(){
     fetch(serverUrl+'/api/user/settings/save',{
       method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify(Object.assign({athleteId:aid},data))
-    }).catch(function(){});
+    })
+    .then(function(r){return r.json();})
+    .then(function(d){ console.log('[dbSaveSettings] response:',d); if(d.ok) toast('✓ Salvato nel cloud'); else toast('Errore salvataggio: '+(d.error||'?')); })
+    .catch(function(e){ console.error('[dbSaveSettings] error:',e); });
   },1500);
 }
 
@@ -82,6 +111,7 @@ function dbLoad(){
       if(d.goals&&d.goals.length){ localStorage.setItem('goals',JSON.stringify(d.goals)); merged=true; }
       if(d.plan){ localStorage.setItem('currentPlan',JSON.stringify(d.plan)); merged=true; }
       if(merged){ renderHome(); drawCharts();
+checkOnboarding();
 // Carica dati dal server se utente già autenticato
 if(getAthleteId()){ dbLoad(); dbLoadSettings(); } }
     }).catch(function(){});
@@ -275,6 +305,7 @@ window.addEventListener('message', function(e){
     }
     if(e.data.accessToken) localStorage.setItem('stravaAccessToken',e.data.accessToken);
     toast('Strava connesso! Benvenuto '+e.data.name);
+    checkOnboarding();
     checkStravaStatus();
     dbLoad();
     dbLoadSettings();
