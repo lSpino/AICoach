@@ -50,8 +50,16 @@ module.exports = async function handler(req, res) {
   const qs = rawUrl.includes('?') ? rawUrl.split('?')[1] : '';
   const p = new URLSearchParams(qs);
   // Se Vercel aggiunge ?path=, usalo come url, altrimenti usa il path di req.url
-  const pathParam = p.get('path');
-  const url = pathParam ? '/api/' + pathParam.replace(/^\/api\//, '').replace(/^\/auth\//, '') : rawUrl.split('?')[0];
+  const pathParam = p.get('path') || '';
+  let url;
+  if (pathParam) {
+    // pathParam può essere "strava/streams" o "strava" (da /auth/strava o /api/strava/...)
+    // rawUrl ci dice il prefisso corretto: /api/... o /auth/...
+    const prefix = rawUrl.startsWith('/auth/') ? '/auth/' : '/api/';
+    url = prefix + pathParam.replace(/^\/(api|auth)\//, '').replace(/^\//, '');
+  } else {
+    url = rawUrl.split('?')[0];
+  }
   const uid = p.get('userId') || 'default';
 
   if (url.startsWith('/auth/strava') && !url.startsWith('/auth/strava/callback')) {
