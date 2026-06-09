@@ -1,7 +1,7 @@
 {
   "version": 2,
   "rewrites": [
-    { "source": "/auth/:path*", "destination": "/api/index?path=/auth/:path*" },
-    { "source": "/api/:path*",  "destination": "/api/index?path=/api/:path*" }
+    { "source": "/auth/:path*", "destination": "/api/index" },
+    { "source": "/api/:path*",  "destination": "/api/index" }
   ]
 }

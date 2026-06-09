@@ -49,9 +49,7 @@ module.exports = async function handler(req, res) {
   const rawUrl = req.url || '';
   const qs = rawUrl.includes('?') ? rawUrl.split('?')[1] : '';
   const p = new URLSearchParams(qs);
-  // Vercel rewrites passano il path originale come ?path=
-  const pathParam = p.get('path') || '';
-  const url = pathParam || rawUrl.split('?')[0];
+  const url = rawUrl.split('?')[0];
   const uid = p.get('userId') || 'default';
 
   if (url.startsWith('/auth/strava') && !url.startsWith('/auth/strava/callback')) {
