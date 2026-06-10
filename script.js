@@ -15,15 +15,22 @@ function saveGoals(g){ localStorage.setItem('goals',JSON.stringify(g)); dbSave({
 // ── Onboarding ────────────────────────────────────────
 function checkOnboarding(){
   var aid=getAthleteId();
-  var ov=document.getElementById('onboarding-overlay');
-  if(!ov) return;
-  if(!aid){
-    ov.style.display='block';
-    document.body.style.overflow='hidden';
-  } else {
-    ov.style.display='none';
-    document.body.style.overflow='';
-  }
+  if(aid) return; // già loggato
+  // Crea popup se non esiste
+  if(document.getElementById('strava-login-popup')) return;
+  var popup=document.createElement('div');
+  popup.id='strava-login-popup';
+  popup.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px';
+  popup.innerHTML='<div style="background:var(--s1,#111);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:28px 24px;max-width:340px;width:100%;text-align:center">'
+    +'<div style="font-size:2rem;margin-bottom:10px">🏃</div>'
+    +'<div style="font-size:1rem;font-weight:700;margin-bottom:8px">Connetti Strava per iniziare</div>'
+    +'<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:24px;line-height:1.5">Per salvare i tuoi allenamenti, accedere da qualsiasi device e usare il coach AI devi prima connettere il tuo account Strava.</div>'
+    +'<button onclick="connectStravaFromOnboarding()" style="width:100%;background:#FC4C02;border:none;color:#fff;font-size:.85rem;font-weight:700;padding:13px 20px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">'
+    +'<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>'
+    +'Connetti Strava</button>'
+    +'<div style="font-size:.65rem;color:rgba(255,255,255,.25);margin-top:12px">Gratuito · Dati protetti</div>'
+    +'</div>';
+  document.body.appendChild(popup);
 }
 
 function connectStravaFromOnboarding(){
@@ -310,7 +317,7 @@ window.addEventListener('message', function(e){
     }
     if(e.data.accessToken) localStorage.setItem('stravaAccessToken',e.data.accessToken);
     toast('Strava connesso! Benvenuto '+e.data.name);
-    checkOnboarding();
+    var pp=document.getElementById('strava-login-popup'); if(pp) pp.remove();
     checkStravaStatus();
     dbLoad();
     dbLoadSettings();
