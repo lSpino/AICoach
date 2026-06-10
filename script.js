@@ -6,68 +6,17 @@ function toast(m){ var t=$('toast'); t.textContent=m; t.classList.add('show'); s
 function getLogs(){ try{ return JSON.parse(localStorage.getItem('logs')||'[]'); }catch(e){ return []; } }
 function getGoals(){ try{ return JSON.parse(localStorage.getItem('goals')||'[]'); }catch(e){ return []; } }
 function getProfile(){ try{ return JSON.parse(localStorage.getItem('athlete')||'{}'); }catch(e){ return {}; } }
-function saveLogs(l){
-  l.sort(function(a,b){return new Date(b.data)-new Date(a.data);});
-  localStorage.setItem('logs',JSON.stringify(l));
-  dbSave({logs:l});
-}
+function saveLogs(l){ l.sort(function(a,b){return new Date(b.data)-new Date(a.data);}); localStorage.setItem('logs',JSON.stringify(l)); dbSave({logs:l}); }
 function saveGoals(g){ localStorage.setItem('goals',JSON.stringify(g)); dbSave({goals:g}); }
-// ── Onboarding ────────────────────────────────────────
-function checkOnboarding(){
-  if(getAthleteId()) return;
-  if(document.getElementById('strava-login-popup')) return;
-  if(localStorage.getItem('stravaPopupDismissed')) return;
-  var popup=document.createElement('div');
-  popup.id='strava-login-popup';
-  popup.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px';
-  popup.innerHTML='<div style="background:#111;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:28px 24px;max-width:340px;width:100%;text-align:center">'
-    +'<div style="font-size:2rem;margin-bottom:10px">🏃</div>'
-    +'<div style="font-size:1rem;font-weight:700;margin-bottom:8px">Connetti Strava</div>'
-    +'<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:24px;line-height:1.5">Connetti Strava per sincronizzare gli allenamenti, salvare i dati nel cloud e accedere da qualsiasi device.</div>'
-    +'<button onclick="connectStravaFromOnboarding()" style="width:100%;background:#FC4C02;border:none;color:#fff;font-size:.85rem;font-weight:700;padding:13px 20px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">'
-    +'<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>'
-    +'Connetti Strava</button>'
-    +'<button onclick="window.dismissStravaPopup()" style="width:100%;background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.5);font-size:.78rem;padding:10px 20px;border-radius:10px;cursor:pointer">Continua senza Strava</button>'
-    +'<div style="font-size:.65rem;color:rgba(255,255,255,.25);margin-top:12px">Gratuito · Dati protetti</div>'
-    +'</div>';
-  document.body.appendChild(popup);
-}
-
-function connectStravaFromOnboarding(){
-  var serverUrl=getServerUrl();
-  if(!serverUrl){ alert('Server URL non configurato'); return; }
-  var uid=localStorage.getItem('userId')||('user_'+Math.random().toString(36).slice(2));
-  localStorage.setItem('userId',uid);
-  window.open(serverUrl+'/auth/strava?userId='+uid,'_blank','width=500,height=700');
-}
-window.connectStravaFromOnboarding=connectStravaFromOnboarding;
-window.checkOnboarding=checkOnboarding;
-window.dismissStravaPopup=function(){
-  var pp=document.getElementById('strava-login-popup'); if(pp) pp.remove();
-  localStorage.setItem('stravaPopupDismissed','1');
-};
-window.checkOnboarding=checkOnboarding;
-
 function getServerUrl(){ var saved=localStorage.getItem('serverUrl'); return saved||'https://ai-coach-brown.vercel.app'; }
-function getAthleteId(){
-  // Restituisce solo ID Strava reali (numerici), non ID temporanei user_xxx
-  var aid=localStorage.getItem('athleteId')||localStorage.getItem('stravaUserId')||'';
-  if(aid && /^\d+$/.test(aid)) return aid;  // ID Strava è sempre numerico
-  return null;
-}
-function getUserId(){ return getAthleteId()||'default'; }
 
-// ── DB sync ───────────────────────────────────────────
 var _dbSaveTimer=null;
 function dbSave(data){
   var aid=getAthleteId(); if(!aid) return;
   var serverUrl=getServerUrl(); if(!serverUrl) return;
   clearTimeout(_dbSaveTimer);
   _dbSaveTimer=setTimeout(function(){
-    fetch(serverUrl+'/api/user/save',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(Object.assign({athleteId:aid},data))
-    }).catch(function(){});
+    fetch(serverUrl+'/api/user/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({athleteId:aid},data))}).catch(function(){});
   },1500);
 }
 
@@ -75,18 +24,11 @@ var _dbSettingsTimer=null;
 function dbSaveSettings(data){
   var aid=getAthleteId();
   var serverUrl=getServerUrl();
-  console.log('[dbSaveSettings] aid='+aid+' url='+serverUrl, data);
-  if(!aid){ console.warn('[dbSaveSettings] no athleteId'); return; }
-  if(!serverUrl){ console.warn('[dbSaveSettings] no serverUrl'); return; }
+  if(!aid||!serverUrl) return;
   clearTimeout(_dbSettingsTimer);
   _dbSettingsTimer=setTimeout(function(){
-    fetch(serverUrl+'/api/user/settings/save',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(Object.assign({athleteId:aid},data))
-    })
-    .then(function(r){return r.json();})
-    .then(function(d){ console.log('[dbSaveSettings] response:',d); if(d.ok) toast('✓ Salvato nel cloud'); else toast('Errore salvataggio: '+(d.error||'?')); })
-    .catch(function(e){ console.error('[dbSaveSettings] error:',e); });
+    fetch(serverUrl+'/api/user/settings/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({athleteId:aid},data))})
+    .then(function(r){return r.json();}).then(function(d){if(d.ok) toast('✓ Salvato nel cloud');}).catch(function(){});
   },1500);
 }
 
@@ -97,14 +39,11 @@ function dbLoadSettings(){
     .then(function(r){return r.json();})
     .then(function(d){
       if(d.error) return;
-      if(d.profile&&Object.keys(d.profile).length){
-        localStorage.setItem('athlete',JSON.stringify(d.profile));
-        loadProfile();
-      }
-      if(d.aiProvider){ localStorage.setItem('aiProvider',d.aiProvider); var el=$('ai-provider'); if(el) el.value=d.aiProvider; }
-      if(d.aiKey){ localStorage.setItem('aiKey',d.aiKey); var el=$('apikey'); if(el) el.value=d.aiKey; }
-      if(d.aiModel){ localStorage.setItem('aiModel',d.aiModel); var el=$('ai-model'); if(el) el.value=d.aiModel; }
-      if(d.customPrompt){ localStorage.setItem('customPlanPrompt',d.customPrompt); var el=$('custom-plan-prompt'); if(el) el.value=d.customPrompt; }
+      if(d.profile&&Object.keys(d.profile).length){ localStorage.setItem('athlete',JSON.stringify(d.profile)); loadProfile(); }
+      if(d.aiProvider){ localStorage.setItem('aiProvider',d.aiProvider); var el=document.getElementById('ai-provider'); if(el) el.value=d.aiProvider; }
+      if(d.aiKey){ localStorage.setItem('aiKey',d.aiKey); var el=document.getElementById('apikey'); if(el) el.value=d.aiKey; }
+      if(d.aiModel){ localStorage.setItem('aiModel',d.aiModel); var el=document.getElementById('ai-model'); if(el) el.value=d.aiModel; }
+      if(d.customPrompt){ localStorage.setItem('customPlanPrompt',d.customPrompt); var el=document.getElementById('custom-plan-prompt'); if(el) el.value=d.customPrompt; }
     }).catch(function(){});
 }
 
@@ -115,28 +54,25 @@ function dbLoad(){
     .then(function(r){return r.json();})
     .then(function(d){
       if(d.error) return;
-      var merged=false;
-      // Merge logs: server wins per stravaId, locale vince per log manuali recenti
       if(d.logs&&d.logs.length){
         var local=getLogs();
         var serverIds=d.logs.map(function(l){return String(l.stravaId||l.id);});
         var onlyLocal=local.filter(function(l){return !serverIds.includes(String(l.stravaId||l.id));});
-        var merged_logs=d.logs.concat(onlyLocal);
-        merged_logs.sort(function(a,b){return new Date(b.data)-new Date(a.data);});
-        localStorage.setItem('logs',JSON.stringify(merged_logs));
-        merged=true;
+        var merged=d.logs.concat(onlyLocal);
+        merged.sort(function(a,b){return new Date(b.data)-new Date(a.data);});
+        localStorage.setItem('logs',JSON.stringify(merged));
       }
-      if(d.goals&&d.goals.length){ localStorage.setItem('goals',JSON.stringify(d.goals)); merged=true; }
-      if(d.plan){ localStorage.setItem('currentPlan',JSON.stringify(d.plan)); merged=true; }
-      if(merged){ renderHome(); drawCharts();
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded', checkOnboarding);
-} else {
-  checkOnboarding();
-}
-// Carica dati dal server se utente già autenticato
-if(getAthleteId()){ dbLoad(); dbLoadSettings(); } }
+      if(d.goals&&d.goals.length) localStorage.setItem('goals',JSON.stringify(d.goals));
+      if(d.plan) localStorage.setItem('currentPlan',JSON.stringify(d.plan));
+      renderHome(); drawCharts();
+if(getAthleteId()){ dbLoad(); dbLoadSettings(); }
     }).catch(function(){});
+}
+function getUserId(){ var id=localStorage.getItem('userId'); if(!id){ id='user_'+Math.random().toString(36).slice(2); localStorage.setItem('userId',id); } return id; }
+function getAthleteId(){
+  var aid=localStorage.getItem('athleteId')||localStorage.getItem('stravaUserId')||'';
+  if(aid && /^[0-9]+$/.test(aid)) return aid;
+  return null;
 }
 
 var SPORTS=['Corsa','Bici / Ciclismo','Nuoto','Triathlon','Palestra / Forza','Trail Running','MTB','Sci di fondo','Altro'];
@@ -191,7 +127,7 @@ $('btn-close-settings').onclick=function(){
   if($('ai-model')&&$('ai-model').value.trim()) localStorage.setItem('aiModel',$('ai-model').value.trim());
   closeModal('settings-modal');
 };
-if($('btn-save-prompt')) $('btn-save-prompt').onclick=function(){ var v=$('custom-plan-prompt').value.trim(); if(v) localStorage.setItem('customPlanPrompt',v); else localStorage.removeItem('customPlanPrompt'); dbSaveSettings({customPrompt:v||''}); toast('Prompt salvato'); };
+if($('btn-save-prompt')) $('btn-save-prompt').onclick=function(){ var v=$('custom-plan-prompt').value.trim(); if(v) localStorage.setItem('customPlanPrompt',v); else localStorage.removeItem('customPlanPrompt'); toast('Prompt salvato'); };
 if($('btn-reset-prompt')) $('btn-reset-prompt').onclick=function(){ localStorage.removeItem('customPlanPrompt'); if($('custom-plan-prompt')) $('custom-plan-prompt').value=getDefaultPrompt(); toast('Prompt ripristinato'); };
 document.querySelectorAll('.modal-ov').forEach(function(m){ m.onclick=function(e){ if(e.target===m) m.classList.remove('open'); }; });
 
@@ -224,7 +160,7 @@ function checkStravaStatus(){
     return;
   }
   var userId=getUserId();
-  fetch(serverUrl+'/api/strava/status?athleteId='+userId)
+  fetch(serverUrl+'/api/strava/status?athleteId='+(getAthleteId()||userId))
     .then(function(r){ return r.json(); })
     .then(function(d){
       if(d.connected){
@@ -282,7 +218,7 @@ $('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
   var serverUrl=getServerUrl(); if(!serverUrl) return;
   var userId=getUserId();
   $('strava-sync-status').textContent='Sincronizzazione in corso...';
-  fetch(serverUrl+'/api/strava/activities?athleteId='+userId+'&perPage=60')
+  fetch(serverUrl+'/api/strava/activities?athleteId='+(getAthleteId()||userId)+'&perPage=60')
     .then(function(r){ return r.json(); })
     .then(function(d){
       if(!d.activities) throw new Error('Nessuna attività');
@@ -318,7 +254,7 @@ $('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
 window.addEventListener('message', function(e){
   if(e.data && e.data.type==='strava_connected'){
     localStorage.setItem('stravaConnected','true');
-    if(e.data.name) localStorage.setItem('stravaAthleteName', e.data.name);
+    if(e.data.name) localStorage.setItem('stravaAthleteName',e.data.name);
     if(e.data.athleteId||e.data.userId){
       var aid=e.data.athleteId||e.data.userId;
       localStorage.setItem('athleteId',aid);
@@ -326,12 +262,32 @@ window.addEventListener('message', function(e){
       localStorage.setItem('userId',aid);
     }
     if(e.data.accessToken) localStorage.setItem('stravaAccessToken',e.data.accessToken);
-    toast('Strava connesso! Benvenuto '+e.data.name);
     var pp=document.getElementById('strava-login-popup'); if(pp) pp.remove();
+    toast('Strava connesso! Benvenuto '+e.data.name);
     checkStravaStatus();
-    dbLoad();
-    dbLoadSettings();
+    dbLoad(); dbLoadSettings();
     renderHome();
+    // Apri profilo se non compilato
+    setTimeout(function(){
+      var athlete={};
+      try{ athlete=JSON.parse(localStorage.getItem('athlete')||'{}'); }catch(ex){}
+      if(!athlete.fcMax && !athlete.peso){
+        var modal=document.getElementById('profilo-modal');
+        if(modal){
+          var existing=document.getElementById('welcome-banner');
+          if(!existing){
+            var banner=document.createElement('div');
+            banner.id='welcome-banner';
+            banner.style.cssText='background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid var(--acc-l);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:.76rem;line-height:1.5';
+            banner.innerHTML='<div style="font-weight:700;color:var(--acc-l);margin-bottom:4px">Benvenuto!</div>'
+              +'<div style="color:rgba(255,255,255,.7)">Completa il profilo per analisi personalizzate. Bastano 2 minuti.</div>';
+            var inner=modal.querySelector('.modal-body')||modal.querySelector('div');
+            if(inner) inner.insertBefore(banner,inner.firstChild);
+          }
+          if(typeof openModal==='function') openModal('profilo-modal');
+        }
+      }
+    },1000);
   }
 });
 
@@ -535,8 +491,7 @@ $('btn-save-profile').onclick=function(){
   var p={}; PF.forEach(function(f){ var e=$('p-'+f); p[f]=e?e.value:''; });
   p.disciplines=disciplines.map(function(d){ return Object.assign({},d); });
   localStorage.setItem('athlete',JSON.stringify(p));
-  updateSb(); toast('Profilo salvato'); closeModal('profilo-modal');
-  dbSaveSettings({profile:p});
+  updateSb(); toast('Profilo salvato'); closeModal('profilo-modal'); dbSaveSettings({profile:p});
 };
 function loadProfile(){ var p=getProfile(); PF.forEach(function(f){ var e=$('p-'+f); if(e&&p[f]) e.value=p[f]; }); disciplines=(p.disciplines||[]).map(function(d){ return Object.assign({},d); }); renderDiscs(); updateSb(); }
 function updateSb(){ var p=getProfile(); if($('sb-name')) $('sb-name').textContent=p.nome||'Profilo'; $('sb-sport').textContent=(p.disciplines&&p.disciplines.length)?p.disciplines.map(function(d){ return d.sport; }).join(' · '):(p.livello||'Configura'); }
@@ -1034,68 +989,44 @@ window.openActivityModal = function(lid){
         .catch(function(e){ splitsLoading.style.display='block'; splitsLoading.textContent='Errore: '+e.message; });
     }
   }
-  // Store for AI analysis
-  _currentActivityForAI = l;
-  // Reset AI panel
+  _currentActivityForAI=l;
   var aiResult=document.getElementById('act-modal-ai-result');
   var aiBtn=document.getElementById('btn-analyze-activity');
-  if(aiResult){ aiResult.style.display='none'; aiResult.innerHTML=''; }
-  if(aiBtn){ aiBtn.disabled=false; aiBtn.textContent='✦ Analizza con AI'; }
+  if(aiResult){aiResult.style.display='none';aiResult.innerHTML='';}
+  if(aiBtn){aiBtn.disabled=false;aiBtn.textContent='\u2726 Analizza con AI';}
   // Show modal
   document.getElementById('activity-modal').style.display='flex';
   document.getElementById('activity-modal').onclick=function(e){ if(e.target===this) closeActivityModal(); };
 };
 
 // ── Analisi AI singola attività ──────────────────────
-var _currentActivityForAI = null;
-
+var _currentActivityForAI=null;
 function analyzeActivity(){
   var btn=document.getElementById('btn-analyze-activity');
   var result=document.getElementById('act-modal-ai-result');
-  if(!_currentActivityForAI){ result.style.display='block'; result.textContent='Errore: attività non trovata.'; return; }
+  if(!_currentActivityForAI){ if(result){result.style.display='block';result.textContent='Errore: attività non trovata.';} return; }
   var l=_currentActivityForAI;
-  btn.disabled=true; btn.textContent='Analisi in corso...';
-  result.style.display='block'; result.innerHTML='<span style="color:var(--t2)">Il coach sta analizzando...</span>';
-
+  if(btn){btn.disabled=true;btn.textContent='Analisi in corso...';}
+  if(result){result.style.display='block';result.innerHTML='<span style="color:var(--t2)">Il coach sta analizzando...</span>';}
   var splitsText='';
   if(l.splits&&l.splits.length){
-    splitsText='\nSplits km a km: '+l.splits.map(function(s,i){
-      var p=s.passo?Math.floor(s.passo/60)+':'+(s.passo%60<10?'0':'')+(s.passo%60):'—';
-      return 'km'+(i+1)+' passo '+p+(s.fc?' FC'+s.fc:'')+(s.fcMax?' max'+s.fcMax:'')+(s.cadenza?' cad'+s.cadenza:'');
+    splitsText='\nSplits: '+l.splits.map(function(s,i){
+      var p=s.passo?Math.floor(s.passo/60)+':'+(s.passo%60<10?'0':'')+(s.passo%60):'--';
+      return 'km'+(i+1)+' '+p+(s.fc?' FC'+s.fc:'');
     }).join(', ');
   }
   var logs=getLogs().filter(function(x){return x.id!==l.id;}).slice(0,10);
-  var storico=logs.map(function(x){
-    return x.data+' '+(x.sport||x.tipo||'run')+' '+(x.distanza||'')+' '+(x.durata||'')+' FC'+(x.fc||'—')+' TSS'+(x.tss||0);
-  }).join('\n');
-  var sys='Sei un coach di endurance esperto. Rispondi sempre in italiano. Sii preciso, usa i dati numerici, non essere generico.';
-  var prompt='Analizza questa attività in dettaglio:\n'+
-    'Tipo: '+(l.sport||l.tipo||'corsa')+'\nData: '+(l.data||'')+'\n'+
-    'Distanza: '+(l.distanza||'—')+'\nDurata: '+(l.durata||'—')+'\n'+
-    'FC media: '+(l.fc||'—')+(l.fcMax?' / max '+l.fcMax:'')+' bpm\n'+
-    'TSS stimato: '+(l.tss||0)+(l.elevation?' · D+'+l.elevation+'m':'')+
-    (l.note&&l.note.indexOf('Da Strava')<0?'\nNote atleta: '+l.note:'')+
-    splitsText+
-    '\n\nStorico recente (ultime 10 sessioni):\n'+storico+
-    '\n\nFornisci un\'analisi strutturata:\n'+
-    '1. QUALITÀ SESSIONE: valuta intensità, distribuzione del passo, drift cardiaco dai splits\n'+
-    '2. PUNTI DI FORZA: cosa ha funzionato bene\n'+
-    '3. AREE DI MIGLIORAMENTO: cosa lavorare\n'+
-    '4. PROSSIMA SESSIONE: consiglio specifico per il prossimo allenamento\n'+
-    'Usa i numeri reali. Max 150 parole.';
-
+  var storico=logs.map(function(x){ return x.data+' '+(x.sport||x.tipo||'run')+' '+(x.distanza||'')+' FC'+(x.fc||'--')+' TSS'+(x.tss||0); }).join('\n');
+  var sys='Sei un coach di endurance esperto. Rispondi in italiano. Usa i dati numerici reali.';
+  var prompt='Analizza questa attività:\nTipo: '+(l.sport||l.tipo||'corsa')+'\nData: '+(l.data||'')+'\nDistanza: '+(l.distanza||'--')+'\nDurata: '+(l.durata||'--')+'\nFC media: '+(l.fc||'--')+(l.fcMax?' / max '+l.fcMax:'')+' bpm\nTSS: '+(l.tss||0)+(l.elevation?' D+'+l.elevation+'m':'')+splitsText+'\n\nStorico:\n'+storico+'\n\nFornisci analisi in 4 parti:\n1. QUALITA\': valuta intensità e distribuzione del passo\n2. PUNTI DI FORZA: cosa ha funzionato\n3. MIGLIORAMENTI: cosa lavorare\n4. PROSSIMA SESSIONE: consiglio specifico\nMax 150 parole.';
   callAI([{role:'user',content:prompt}],sys,600)
     .then(function(txt){
-      btn.disabled=false; btn.textContent='✦ Rianalizza';
-      result.innerHTML=txt
-        .replace(/\n/g,'<br>')
-        .replace(/^(\d+\. [A-ZÀ-ÿ ]+:)/gm,'<strong style="color:var(--acc-l)">$1</strong>');
+      if(btn){btn.disabled=false;btn.textContent='\u2726 Rianalizza';}
+      if(result) result.innerHTML=txt.replace(/\n/g,'<br>').replace(/^(\d+\. [A-Z\u00C0-\u00FF ]+:)/gm,'<strong style="color:var(--acc-l)">$1</strong>');
     })
-    .catch(function(e){
-      btn.disabled=false; btn.textContent='✦ Analizza con AI';
-      result.textContent='Errore: '+e.message;
-    });
+    .catch(function(e){ if(btn){btn.disabled=false;btn.textContent='\u2726 Analizza con AI';} if(result) result.textContent='Errore: '+e.message; });
 }
+window.analyzeActivity=analyzeActivity;
 
 function renderSplits(splits){
   var body=document.getElementById('act-modal-splits-body');
@@ -1143,7 +1074,6 @@ function renderSplits(splits){
   document.getElementById('act-modal-splits').style.display='block';
 }
 
-window.analyzeActivity = analyzeActivity;
 window.saveActivityNote = function(){
   var note = document.getElementById('act-modal-note').value.trim();
   var logs = getLogs();
@@ -1270,37 +1200,26 @@ function showCoachReport(session){
   localStorage.setItem('lastCoachReport',JSON.stringify(report));
   if($('notif-dot')) $('notif-dot').classList.add('show');
   renderHome();
-  // Genera analisi AI
   var logs=getLogs().slice(0,14);
   var splitsText='';
   if(session.splits&&session.splits.length){
-    splitsText='\nSplits km: '+session.splits.map(function(s,i){
-      var p=s.passo?Math.floor(s.passo/60)+':'+(s.passo%60<10?'0':'')+(s.passo%60):'—';
+    splitsText='\nSplits: '+session.splits.map(function(s,i){
+      var p=s.passo?Math.floor(s.passo/60)+':'+(s.passo%60<10?'0':'')+(s.passo%60):'--';
       return 'km'+(i+1)+' '+p+(s.fc?' FC'+s.fc:'');
     }).join(', ');
   }
   var storico=logs.filter(function(l){return l.id!==session.id;}).slice(0,7).map(function(l){
-    return l.data+' '+( l.sport||l.tipo||'run')+' '+(l.distanza||'')+' '+(l.durata||'')+' FC'+(l.fc||'—')+' TSS'+(l.tss||0);
+    return l.data+' '+(l.sport||l.tipo||'run')+' '+(l.distanza||'')+' FC'+(l.fc||'--')+' TSS'+(l.tss||0);
   }).join('\n');
-  var sys='Sei un coach di endurance esperto. Rispondi sempre in italiano. Sii diretto, concreto, usa dati numerici.';
-  var prompt='Attività appena completata:\n'+
-    'Tipo: '+(session.sport||session.tipo||'corsa')+'\n'+
-    'Distanza: '+(session.distanza||'—')+'\nDurata: '+(session.durata||'—')+'\n'+
-    'FC media: '+(session.fc||'—')+' bpm\nTSS: '+(session.tss||0)+
-    splitsText+
-    '\n\nUltime attività (storico):\n'+storico+
-    '\n\nScrivi un\'analisi strutturata in 3 parti:\n'+
-    '1. SINTESI: cosa è andato bene/male in questa sessione (2-3 frasi)\n'+
-    '2. TREND: cosa emerge dallo storico recente (1-2 frasi)\n'+
-    '3. CONSIGLIO: cosa fare nei prossimi 2-3 giorni (1-2 frasi)\n'+
-    'Usa i dati numerici. Sii diretto. Max 120 parole totali.';
+  var sys='Sei un coach di endurance esperto. Rispondi in italiano. Sii diretto e usa dati numerici.';
+  var prompt='Attività completata:\nTipo: '+(session.sport||session.tipo||'corsa')+'\nDistanza: '+(session.distanza||'--')+'\nDurata: '+(session.durata||'--')+'\nFC media: '+(session.fc||'--')+' bpm\nTSS: '+(session.tss||0)+splitsText+'\n\nStorico recente:\n'+storico+'\n\nScrivi analisi in 3 parti:\n1. SINTESI: cosa è andato bene/male\n2. TREND: cosa emerge dallo storico\n3. CONSIGLIO: prossimi 2-3 giorni\nMax 120 parole.';
   callAI([{role:'user',content:prompt}],sys,500)
     .then(function(txt){
       report.analisi=txt;
       localStorage.setItem('lastCoachReport',JSON.stringify(report));
       var cb=$('cr-body'); if(cb) cb.innerHTML=txt.replace(/\n/g,'<br>').replace(/^(\d+\. [A-Z]+:)/gm,'<strong>$1</strong>');
     })
-    .catch(function(e){ report.analisi='Analisi non disponibile: '+e.message; localStorage.setItem('lastCoachReport',JSON.stringify(report)); var cb=$('cr-body'); if(cb) cb.textContent=report.analisi; });
+    .catch(function(){});
 }
 
 
