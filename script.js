@@ -41,6 +41,8 @@ function connectStravaFromOnboarding(){
   window.open(serverUrl+'/auth/strava?userId='+uid,'_blank','width=500,height=700');
 }
 window.connectStravaFromOnboarding=connectStravaFromOnboarding;
+window.checkOnboarding=checkOnboarding;
+window.checkOnboarding=checkOnboarding;
 
 function getServerUrl(){ var saved=localStorage.getItem('serverUrl'); return saved||'https://ai-coach-brown.vercel.app'; }
 function getAthleteId(){
@@ -123,7 +125,7 @@ function dbLoad(){
       if(d.goals&&d.goals.length){ localStorage.setItem('goals',JSON.stringify(d.goals)); merged=true; }
       if(d.plan){ localStorage.setItem('currentPlan',JSON.stringify(d.plan)); merged=true; }
       if(merged){ renderHome(); drawCharts();
-checkOnboarding();
+setTimeout(checkOnboarding, 100);
 // Carica dati dal server se utente già autenticato
 if(getAthleteId()){ dbLoad(); dbLoadSettings(); } }
     }).catch(function(){});
