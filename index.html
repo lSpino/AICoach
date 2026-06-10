@@ -541,8 +541,6 @@
     + '</div>';
   document.body.appendChild(d);
   document.getElementById('ob-strava-btn').onclick = function(){
-    var apikey = document.getElementById('ob-apikey').value.trim();
-    if(apikey){ localStorage.setItem('aiKey', apikey); localStorage.setItem('aiProvider','anthropic'); }
     var serverUrl = localStorage.getItem('serverUrl') || 'https://ai-coach-brown.vercel.app';
     var uid = localStorage.getItem('userId') || ('user_' + Math.random().toString(36).slice(2));
     localStorage.setItem('userId', uid);
