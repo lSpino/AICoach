@@ -65,7 +65,12 @@ function dbLoad(){
       if(d.goals&&d.goals.length) localStorage.setItem('goals',JSON.stringify(d.goals));
       if(d.plan) localStorage.setItem('currentPlan',JSON.stringify(d.plan));
       renderHome(); drawCharts();
-if(getAthleteId()){ dbLoad(); dbLoadSettings(); }
+if(getAthleteId()){
+  dbLoad();
+  dbLoadSettings();
+  // Auto-sync Strava ogni volta che si apre l'app (silent)
+  setTimeout(function(){ syncStravaActivities(true); }, 2000);
+}
     }).catch(function(){});
 }
 function getUserId(){ var id=localStorage.getItem('userId'); if(!id){ id='user_'+Math.random().toString(36).slice(2); localStorage.setItem('userId',id); } return id; }
@@ -214,41 +219,39 @@ function disconnectStrava(){
 window.disconnectStrava=disconnectStrava;
 window.connectStrava=connectStrava;
 
-$('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){
+function syncStravaActivities(silent){
   var serverUrl=getServerUrl(); if(!serverUrl) return;
-  var userId=getUserId();
-  $('strava-sync-status').textContent='Sincronizzazione in corso...';
-  fetch(serverUrl+'/api/strava/activities?athleteId='+(getAthleteId()||userId)+'&perPage=60')
+  var userId=getAthleteId()||getUserId(); if(!userId) return;
+  var accessToken=localStorage.getItem('stravaAccessToken')||'';
+  if(!silent && $('strava-sync-status')) $('strava-sync-status').textContent='Sincronizzazione in corso...';
+  fetch(serverUrl+'/api/strava/activities?athleteId='+userId+'&perPage=60'+(accessToken?'&accessToken='+encodeURIComponent(accessToken):''))
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if(!d.activities) throw new Error('Nessuna attività');
+      if(!d.activities) throw new Error('Nessuna attivita');
       var existing=getLogs(); var existingIds=existing.map(function(l){ return l.stravaId; });
       var newActs=d.activities.filter(function(a){ return !existingIds.includes(a.stravaId); });
       newActs.forEach(function(a){
-        // Preserva stravaId PRIMA di assegnare il nuovo id locale
-        var sid = a.stravaId;
-        a.id     = Date.now() + Math.random();
-        a.stravaId = sid; // ripristina dopo sovrascrittura id
-        a.tipo   = a.titolo || a.sport || 'Allenamento';
-        // km già numerico dal server; distanza è stringa "12.3 km" — normalizza
-        if(!a.km && a.distanza) a.km = parseFloat(a.distanza);
-        a.fonte  = 'strava';
-        a.source = 'strava';
+        var sid=a.stravaId;
+        a.id=Date.now()+Math.random();
+        a.stravaId=sid;
+        a.tipo=a.titolo||a.sport||'Allenamento';
+        if(!a.km && a.distanza) a.km=parseFloat(a.distanza);
+        a.fonte='strava'; a.source='strava';
         existing.unshift(a);
       });
       saveLogs(existing); renderLogs(); renderHome(); drawCharts();
-      // Auto-analyze newest activity
       if(newActs.length>0){
+        if(!silent) toast('Sincronizzati '+newActs.length+' allenamenti da Strava');
+        if($('strava-sync-status')) $('strava-sync-status').textContent='Sincronizzati '+newActs.length+' nuovi allenamenti.';
         var newest=newActs[0];
-        setTimeout(function(){
-          showCoachReport(newest);
-          toast('Coach sta analizzando: '+newest.tipo);
-        },1500);
+        setTimeout(function(){ showCoachReport(newest); },1500);
+      } else {
+        if($('strava-sync-status')) $('strava-sync-status').textContent='Tutto aggiornato.';
       }
-      $('strava-sync-status').textContent='Sincronizzati '+newActs.length+' nuovi allenamenti.';
-      toast('Sincronizzati '+newActs.length+' allenamenti da Strava');
-    }).catch(function(e){ $('strava-sync-status').textContent='Errore sincronizzazione.'; console.error(e); });
-});
+    }).catch(function(e){ if(!silent && $('strava-sync-status')) $('strava-sync-status').textContent='Errore sincronizzazione.'; });
+}
+
+$('btn-sync-strava') && ($('btn-sync-strava').onclick=function(){ syncStravaActivities(false); });
 
 // Ascolta messaggio dal popup Strava
 window.addEventListener('message', function(e){
@@ -267,6 +270,7 @@ window.addEventListener('message', function(e){
     checkStravaStatus();
     dbLoad(); dbLoadSettings();
     renderHome();
+    setTimeout(function(){ syncStravaActivities(true); }, 1500);
     // Apri profilo se non compilato
     setTimeout(function(){
       var athlete={};
@@ -491,9 +495,26 @@ $('btn-save-profile').onclick=function(){
   var p={}; PF.forEach(function(f){ var e=$('p-'+f); p[f]=e?e.value:''; });
   p.disciplines=disciplines.map(function(d){ return Object.assign({},d); });
   localStorage.setItem('athlete',JSON.stringify(p));
-  updateSb(); toast('Profilo salvato'); closeModal('profilo-modal'); dbSaveSettings({profile:p});
+  // Salva anche impostazioni AI dai nuovi campi profilo
+  var newProv=($('p-ai-provider')||{}).value||''; if(newProv){ localStorage.setItem('aiProvider',newProv); var elProv=$('ai-provider'); if(elProv) elProv.value=newProv; }
+  var newKey=($('p-ai-key')||{}).value||''; if(newKey){ localStorage.setItem('aiKey',newKey); var elKey=$('apikey'); if(elKey) elKey.value=newKey; }
+  var newModel=($('p-ai-model')||{}).value||''; if(newModel){ localStorage.setItem('aiModel',newModel); var elModel=$('ai-model'); if(elModel) elModel.value=newModel; }
+  updateSb(); toast('Profilo salvato'); closeModal('profilo-modal');
+  dbSaveSettings({profile:p, aiProvider:newProv||undefined, aiKey:newKey||undefined, aiModel:newModel||undefined});
 };
-function loadProfile(){ var p=getProfile(); PF.forEach(function(f){ var e=$('p-'+f); if(e&&p[f]) e.value=p[f]; }); disciplines=(p.disciplines||[]).map(function(d){ return Object.assign({},d); }); renderDiscs(); updateSb(); }
+function loadProfile(){
+  var p=getProfile();
+  PF.forEach(function(f){ var e=$('p-'+f); if(e&&p[f]) e.value=p[f]; });
+  disciplines=(p.disciplines||[]).map(function(d){ return Object.assign({},d); });
+  renderDiscs(); updateSb();
+  // Carica impostazioni AI nei nuovi campi del profilo
+  var prov=localStorage.getItem('aiProvider')||'anthropic';
+  var key=localStorage.getItem('aiKey')||'';
+  var model=localStorage.getItem('aiModel')||'';
+  var elProv=$('p-ai-provider'); if(elProv) elProv.value=prov;
+  var elKey=$('p-ai-key'); if(elKey) elKey.value=key;
+  var elModel=$('p-ai-model'); if(elModel) elModel.value=model;
+}
 function updateSb(){ var p=getProfile(); if($('sb-name')) $('sb-name').textContent=p.nome||'Profilo'; $('sb-sport').textContent=(p.disciplines&&p.disciplines.length)?p.disciplines.map(function(d){ return d.sport; }).join(' · '):(p.livello||'Configura'); }
 loadProfile();
 
