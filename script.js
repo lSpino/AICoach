@@ -14,20 +14,20 @@ function saveLogs(l){
 function saveGoals(g){ localStorage.setItem('goals',JSON.stringify(g)); dbSave({goals:g}); }
 // ── Onboarding ────────────────────────────────────────
 function checkOnboarding(){
-  var aid=getAthleteId();
-  if(aid) return; // già loggato
-  // Crea popup se non esiste
+  if(getAthleteId()) return;
   if(document.getElementById('strava-login-popup')) return;
+  if(localStorage.getItem('stravaPopupDismissed')) return;
   var popup=document.createElement('div');
   popup.id='strava-login-popup';
   popup.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px';
-  popup.innerHTML='<div style="background:var(--s1,#111);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:28px 24px;max-width:340px;width:100%;text-align:center">'
+  popup.innerHTML='<div style="background:#111;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:28px 24px;max-width:340px;width:100%;text-align:center">'
     +'<div style="font-size:2rem;margin-bottom:10px">🏃</div>'
-    +'<div style="font-size:1rem;font-weight:700;margin-bottom:8px">Connetti Strava per iniziare</div>'
-    +'<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:24px;line-height:1.5">Per salvare i tuoi allenamenti, accedere da qualsiasi device e usare il coach AI devi prima connettere il tuo account Strava.</div>'
-    +'<button onclick="connectStravaFromOnboarding()" style="width:100%;background:#FC4C02;border:none;color:#fff;font-size:.85rem;font-weight:700;padding:13px 20px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">'
+    +'<div style="font-size:1rem;font-weight:700;margin-bottom:8px">Connetti Strava</div>'
+    +'<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:24px;line-height:1.5">Connetti Strava per sincronizzare gli allenamenti, salvare i dati nel cloud e accedere da qualsiasi device.</div>'
+    +'<button onclick="connectStravaFromOnboarding()" style="width:100%;background:#FC4C02;border:none;color:#fff;font-size:.85rem;font-weight:700;padding:13px 20px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">'
     +'<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>'
     +'Connetti Strava</button>'
+    +'<button onclick="window.dismissStravaPopup()" style="width:100%;background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.5);font-size:.78rem;padding:10px 20px;border-radius:10px;cursor:pointer">Continua senza Strava</button>'
     +'<div style="font-size:.65rem;color:rgba(255,255,255,.25);margin-top:12px">Gratuito · Dati protetti</div>'
     +'</div>';
   document.body.appendChild(popup);
@@ -42,6 +42,10 @@ function connectStravaFromOnboarding(){
 }
 window.connectStravaFromOnboarding=connectStravaFromOnboarding;
 window.checkOnboarding=checkOnboarding;
+window.dismissStravaPopup=function(){
+  var pp=document.getElementById('strava-login-popup'); if(pp) pp.remove();
+  localStorage.setItem('stravaPopupDismissed','1');
+};
 window.checkOnboarding=checkOnboarding;
 
 function getServerUrl(){ var saved=localStorage.getItem('serverUrl'); return saved||'https://ai-coach-brown.vercel.app'; }
@@ -125,7 +129,11 @@ function dbLoad(){
       if(d.goals&&d.goals.length){ localStorage.setItem('goals',JSON.stringify(d.goals)); merged=true; }
       if(d.plan){ localStorage.setItem('currentPlan',JSON.stringify(d.plan)); merged=true; }
       if(merged){ renderHome(); drawCharts();
-setTimeout(checkOnboarding, 100);
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded', checkOnboarding);
+} else {
+  checkOnboarding();
+}
 // Carica dati dal server se utente già autenticato
 if(getAthleteId()){ dbLoad(); dbLoadSettings(); } }
     }).catch(function(){});
