@@ -504,5 +504,36 @@
     <div id="act-modal-splits-loading" style="display:none;font-size:.7rem;color:var(--t2);padding:10px 0">Caricamento splits...</div>
   </div>
 </div>
+<script>
+(function(){
+  var aid = localStorage.getItem('athleteId') || localStorage.getItem('stravaUserId') || '';
+  if(aid && /^\d+$/.test(aid)) return;
+  if(localStorage.getItem('stravaPopupDismissed')) return;
+  var d = document.createElement('div');
+  d.id = 'strava-login-popup';
+  d.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px';
+  d.innerHTML = '<div style="background:#111;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:28px 24px;max-width:340px;width:100%;text-align:center">'
+    + '<div style="font-size:2.2rem;margin-bottom:12px">&#127939;</div>'
+    + '<div style="font-size:1rem;font-weight:700;color:#fff;margin-bottom:8px">Connetti Strava</div>'
+    + '<div style="font-size:.78rem;color:rgba(255,255,255,.5);margin-bottom:24px;line-height:1.5">Connetti Strava per sincronizzare gli allenamenti, salvare i dati nel cloud e accedere da qualsiasi device.</div>'
+    + '<button id="ob-strava-btn" style="width:100%;background:#FC4C02;border:none;color:#fff;font-size:.85rem;font-weight:700;padding:13px 20px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">'
+    + '<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>'
+    + 'Connetti Strava</button>'
+    + '<button id="ob-skip-btn" style="width:100%;background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.5);font-size:.78rem;padding:10px 20px;border-radius:10px;cursor:pointer">Continua senza Strava</button>'
+    + '<div style="font-size:.65rem;color:rgba(255,255,255,.2);margin-top:12px">Gratuito &middot; Dati protetti</div>'
+    + '</div>';
+  document.body.appendChild(d);
+  document.getElementById('ob-strava-btn').onclick = function(){
+    var serverUrl = localStorage.getItem('serverUrl') || 'https://ai-coach-brown.vercel.app';
+    var uid = localStorage.getItem('userId') || ('user_' + Math.random().toString(36).slice(2));
+    localStorage.setItem('userId', uid);
+    window.open(serverUrl + '/auth/strava?userId=' + uid, '_blank', 'width=500,height=700');
+  };
+  document.getElementById('ob-skip-btn').onclick = function(){
+    localStorage.setItem('stravaPopupDismissed', '1');
+    d.remove();
+  };
+})();
+</script>
 </body>
 </html>
