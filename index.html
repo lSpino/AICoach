@@ -55,13 +55,9 @@
     <div class="sb-logo-text">Endurance</div>
   </div>
   <div class="sb-nav">
-    <div class="sb-sec">Principale</div>
     <div class="sb-item active" id="nav-home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></div>
-    <div class="sb-item" id="nav-log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>Allenamenti</span></div>
-    <div class="sb-sec">Pianificazione</div>
-    <div class="sb-item" id="nav-goals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span>Obiettivi</span></div>
+    <div class="sb-item" id="nav-log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Allenamenti</span></div>
     <div class="sb-item" id="nav-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Piano</span></div>
-    <div class="sb-item" id="nav-calc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg><span>Calcolatore</span></div>
   </div>
   <div class="sb-bottom">
     <div class="sb-profile" id="open-profilo">
@@ -292,27 +288,19 @@
     </div>
   </div>
 
-  <!-- OBIETTIVI -->
-  <div id="tab-goals" class="tab">
-    <div class="pg-head"><h1>Obiettivi</h1><p>Aggiungi gare o target — il piano si aggiorna automaticamente</p></div>
-    <div class="card">
-      <div class="card-label">Nuovo obiettivo</div>
-      <div class="g2" style="margin-bottom:8px">
-        <div class="field"><label>Nome / gara</label><input id="g-nome" placeholder="Maratona di Milano"></div>
-        <div class="field"><label>Tipo</label><select id="g-tipo"><option>Gara — Maratona</option><option>Gara — Mezza maratona</option><option>Gara — 10 km</option><option>Gara — 5 km</option><option>Gara — Triathlon</option><option>Gara — Granfondo</option><option>Gara — Trail</option><option>Performance — FTP</option><option>Performance — VO2max</option><option>Salute — Peso</option><option>Forza — Palestra</option><option>Altro</option></select></div>
-        <div class="field"><label>Data target</label><input type="date" id="g-data"></div>
-        <div class="field"><label>Priorità</label><select id="g-prio"><option>A — Principale</option><option>B — Secondario</option><option>C — Complementare</option></select></div>
-      </div>
-      <div class="field" style="margin-bottom:8px"><label>Target specifico</label><input id="g-target" placeholder="Sub 3:30 · FTP 270W..."></div>
-      <div class="field"><label>Note preparazione</label><textarea id="g-note" placeholder="Gare di test, blocchi chiave..."></textarea></div>
-      <div class="row-act"><button class="btn btn-primary" id="btn-add-goal">Aggiungi obiettivo</button></div>
-    </div>
-    <div class="card"><div class="sh"><h2>Obiettivi attivi</h2><span style="font-size:.63rem;color:var(--t2)" id="goalCount"></span></div><div id="goalList"><p style="font-size:.74rem;color:var(--t2)">Nessun obiettivo.</p></div></div>
-  </div>
+
 
   <!-- PIANO -->
   <div id="tab-plan" class="tab">
-    <div class="pg-head"><h1>Piano corrente</h1><p>Generato in base a obiettivi, disponibilità e carico recente</p></div>
+    <div class="pg-head" style="margin-bottom:14px"><h1>Piano</h1></div>
+    <!-- Sub-tab nav -->
+    <div style="display:flex;gap:4px;margin-bottom:18px;background:var(--s1);border:1px solid var(--line);border-radius:9px;padding:3px">
+      <button class="plan-subtab active" data-tab="piano" onclick="switchPlanTab('piano')" style="flex:1;padding:6px 8px;border-radius:7px;border:none;background:var(--s3);color:var(--t0);font-size:.71rem;font-weight:600;cursor:pointer;font-family:var(--f);transition:all .12s">Piano</button>
+      <button class="plan-subtab" data-tab="obiettivi" onclick="switchPlanTab('obiettivi')" style="flex:1;padding:6px 8px;border-radius:7px;border:none;background:transparent;color:var(--t2);font-size:.71rem;font-weight:500;cursor:pointer;font-family:var(--f);transition:all .12s">Obiettivi</button>
+      <button class="plan-subtab" data-tab="calc" onclick="switchPlanTab('calc')" style="flex:1;padding:6px 8px;border-radius:7px;border:none;background:transparent;color:var(--t2);font-size:.71rem;font-weight:500;cursor:pointer;font-family:var(--f);transition:all .12s">Calcolatore</button>
+    </div>
+    <!-- Piano sub-content -->
+    <div id="plan-sub-piano">
     <div style="display:flex;gap:8px;margin-bottom:.875rem">
       <button class="btn btn-primary" id="btn-gen-plan">Genera piano AI</button>
     </div>
@@ -322,63 +310,66 @@
     <div id="plan-days"></div>
     <div id="plan-empty" class="card" style="display:none"><p style="font-size:.74rem;color:var(--t2)">Aggiungi un obiettivo e clicca "Genera piano".</p></div>
     <div style="font-size:.62rem;color:var(--t3);margin-top:.5rem" id="plan-gen-date"></div>
-  </div>
+    </div><!-- end plan-sub-piano -->
 
-
-  <!-- CALCOLATORE -->
-  <div id="tab-calc" class="tab">
-    <div class="pg-head"><h1>Calcolatore</h1><p>Scrivi i numeri, i : arrivano da soli</p></div>
-
-    <div class="card">
-      <div class="card-label">Distanza</div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px" id="calc-dist-btns">
-        <button class="calc-db" data-km="1">1 km</button>
-        <button class="calc-db" data-km="5">5 km</button>
-        <button class="calc-db" data-km="10">10 km</button>
-        <button class="calc-db active" data-km="21.0975">Mezza</button>
-        <button class="calc-db" data-km="42.195">Maratona</button>
-        <button class="calc-db" data-km="custom">Custom</button>
-        <input type="number" id="calc-custom-km" min="0.1" step="0.1" placeholder="km" style="display:none;width:72px;padding:4px 8px;font-size:.72rem">
-      </div>
-
-      <div class="g2" style="margin-bottom:14px">
-        <div class="field">
-          <label>Tempo totale</label>
-          <input id="calc-time" class="calc-big-inp" placeholder="1:45:00" maxlength="8" inputmode="numeric" autocomplete="off" style="font-size:1.5rem;font-family:var(--mono);letter-spacing:2px;padding:10px 12px">
-          <span style="font-size:.6rem;color:var(--t3);margin-top:3px;display:block">scrivi solo i numeri — hh:mm:ss</span>
+    <!-- Obiettivi sub-content -->
+    <div id="plan-sub-obiettivi" style="display:none">
+      <div class="card">
+        <div class="card-label">Nuovo obiettivo</div>
+        <div class="g2" style="margin-bottom:8px">
+          <div class="field"><label>Nome / gara</label><input id="g-nome" placeholder="Maratona di Milano"></div>
+          <div class="field"><label>Tipo</label><select id="g-tipo"><option>Gara — Maratona</option><option>Gara — Mezza maratona</option><option>Gara — 10 km</option><option>Gara — 5 km</option><option>Gara — Triathlon</option><option>Gara — Granfondo</option><option>Gara — Trail</option><option>Performance — FTP</option><option>Performance — VO2max</option><option>Salute — Peso</option><option>Forza — Palestra</option><option>Altro</option></select></div>
+          <div class="field"><label>Data target</label><input type="date" id="g-data"></div>
+          <div class="field"><label>Priorità</label><select id="g-prio"><option>A — Principale</option><option>B — Secondario</option><option>C — Complementare</option></select></div>
         </div>
-        <div class="field">
-          <label>Ritmo /km</label>
-          <input id="calc-pace" class="calc-big-inp" placeholder="4:58" maxlength="5" inputmode="numeric" autocomplete="off" style="font-size:1.5rem;font-family:var(--mono);letter-spacing:2px;padding:10px 12px">
-          <span style="font-size:.6rem;color:var(--t3);margin-top:3px;display:block">scrivi solo i numeri — mm:ss</span>
-        </div>
+        <div class="field" style="margin-bottom:8px"><label>Target specifico</label><input id="g-target" placeholder="Sub 3:30 · FTP 270W..."></div>
+        <div class="field"><label>Note preparazione</label><textarea id="g-note" placeholder="Gare di test, blocchi chiave..."></textarea></div>
+        <div class="row-act"><button class="btn btn-primary" id="btn-add-goal">Aggiungi obiettivo</button></div>
       </div>
+      <div class="card"><div class="sh"><h2>Obiettivi attivi</h2><span style="font-size:.63rem;color:var(--t2)" id="goalCount"></span></div><div id="goalList"><p style="font-size:.74rem;color:var(--t2)">Nessun obiettivo.</p></div></div>
+    </div>
 
-      <div id="calc-result" style="display:none;background:var(--s2);border:1px solid var(--line2);border-radius:8px;padding:14px 16px;margin-bottom:14px">
-        <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
-          <div>
-            <div style="font-size:1.9rem;font-weight:300;letter-spacing:-1.5px;font-family:var(--mono);line-height:1" id="calc-res-tempo">—</div>
-            <div style="font-size:.57rem;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Tempo finale</div>
+    <!-- Calcolatore sub-content -->
+    <div id="plan-sub-calc" style="display:none">
+      <div class="card">
+        <div class="card-label">Distanza</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:16px" id="calc-dist-btns">
+          <button class="calc-db" data-km="1">1 km</button>
+          <button class="calc-db" data-km="5">5 km</button>
+          <button class="calc-db" data-km="10">10 km</button>
+          <button class="calc-db active" data-km="21.0975">Mezza</button>
+          <button class="calc-db" data-km="42.195">Maratona</button>
+          <button class="calc-db" data-km="custom">Custom</button>
+          <input type="number" id="calc-custom-km" min="0.1" step="0.1" placeholder="km" style="display:none;width:72px;padding:4px 8px;font-size:.72rem">
+        </div>
+        <div class="g2" style="margin-bottom:14px">
+          <div class="field">
+            <label>Tempo totale</label>
+            <input id="calc-time" class="calc-big-inp" placeholder="1:45:00" maxlength="8" inputmode="numeric" autocomplete="off" style="font-size:1.5rem;font-family:var(--mono);letter-spacing:2px;padding:10px 12px">
+            <span style="font-size:.6rem;color:var(--t3);margin-top:3px;display:block">scrivi solo i numeri — hh:mm:ss</span>
           </div>
-          <div style="border-left:1px solid var(--line2);padding-left:20px">
-            <div style="font-size:1.9rem;font-weight:300;letter-spacing:-1.5px;font-family:var(--mono);line-height:1" id="calc-res-ritmo">—</div>
-            <div style="font-size:.57rem;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Ritmo medio /km</div>
-          </div>
-          <div style="border-left:1px solid var(--line2);padding-left:20px">
-            <div style="font-size:1.9rem;font-weight:300;letter-spacing:-1.5px;font-family:var(--mono);line-height:1" id="calc-res-kmh">—</div>
-            <div style="font-size:.57rem;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">km/h</div>
+          <div class="field">
+            <label>Ritmo /km</label>
+            <input id="calc-pace" class="calc-big-inp" placeholder="4:58" maxlength="5" inputmode="numeric" autocomplete="off" style="font-size:1.5rem;font-family:var(--mono);letter-spacing:2px;padding:10px 12px">
+            <span style="font-size:.6rem;color:var(--t3);margin-top:3px;display:block">scrivi solo i numeri — mm:ss</span>
           </div>
         </div>
-      </div>
-
-      <div id="calc-pace-table" style="display:none;border:1px solid var(--line);border-radius:8px;overflow:hidden">
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:7px 12px;font-size:.57rem;color:var(--t2);text-transform:uppercase;letter-spacing:.7px;background:var(--s2);border-bottom:1px solid var(--line)">
-          <span>Distanza</span><span>Tempo</span><span>km/h</span>
+        <div id="calc-result" style="display:none;background:var(--s2);border:1px solid var(--line2);border-radius:8px;padding:14px 16px;margin-bottom:14px">
+          <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end">
+            <div><div style="font-size:1.9rem;font-weight:300;letter-spacing:-1.5px;font-family:var(--mono);line-height:1" id="calc-res-tempo">—</div><div style="font-size:.57rem;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Tempo finale</div></div>
+            <div style="border-left:1px solid var(--line2);padding-left:20px"><div style="font-size:1.9rem;font-weight:300;letter-spacing:-1.5px;font-family:var(--mono);line-height:1" id="calc-res-ritmo">—</div><div style="font-size:.57rem;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Ritmo medio /km</div></div>
+            <div style="border-left:1px solid var(--line2);padding-left:20px"><div style="font-size:1.9rem;font-weight:300;letter-spacing:-1.5px;font-family:var(--mono);line-height:1" id="calc-res-kmh">—</div><div style="font-size:.57rem;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">km/h</div></div>
+          </div>
         </div>
-        <div id="calc-pt-body"></div>
+        <div id="calc-pace-table" style="display:none;border:1px solid var(--line);border-radius:8px;overflow:hidden">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;padding:7px 12px;font-size:.57rem;color:var(--t2);text-transform:uppercase;letter-spacing:.7px;background:var(--s2);border-bottom:1px solid var(--line)"><span>Distanza</span><span>Tempo</span><span>km/h</span></div>
+          <div id="calc-pt-body"></div>
+        </div>
       </div>
     </div>
+
   </div>
+
 
 </main>
 
@@ -501,22 +492,17 @@
       <textarea id="act-modal-note" placeholder="Sensazioni, meteo, qualità sonno, come ti sei sentito..." style="width:100%;min-height:70px;background:var(--s1);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;font-size:.73rem;color:var(--t1);font-family:var(--f);resize:vertical"></textarea>
       <button class="btn btn-ghost" onclick="saveActivityNote()" style="font-size:.68rem;margin-top:6px">Salva nota</button>
     </div>
-    <!-- Splits table -->
+    <!-- Splits -->
     <div id="act-modal-splits" style="display:none">
-      <div style="font-size:.62rem;color:var(--t2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Splits per km</div>
-      <table style="width:100%;border-collapse:collapse;font-size:.7rem" id="act-modal-splits-table">
-        <thead><tr style="color:var(--t2);font-size:.6rem">
-          <th style="text-align:left;padding:4px 6px;font-weight:500">Km</th>
-          <th style="text-align:right;padding:4px 6px;font-weight:500">Passo</th>
-          <th style="text-align:right;padding:4px 6px;font-weight:500">Durata</th>
-          <th style="text-align:right;padding:4px 6px;font-weight:500">FC media</th>
-          <th style="text-align:right;padding:4px 6px;font-weight:500">FC max</th>
-          <th style="text-align:right;padding:4px 6px;font-weight:500">Cad./Pot.</th>
-        </tr></thead>
-        <tbody id="act-modal-splits-body"></tbody>
-      </table>
+      <div style="font-size:.62rem;color:var(--t2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">Splits per km</div>
+      <div id="act-modal-splits-body"></div>
     </div>
     <div id="act-modal-splits-loading" style="display:none;font-size:.7rem;color:var(--t2);padding:10px 0">Caricamento splits...</div>
+    <!-- AI Analysis -->
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+      <button id="btn-analyze-activity" class="btn btn-primary" style="width:100%;font-size:.74rem" onclick="analyzeActivity()">&#x2726; Analizza con AI</button>
+      <div id="act-modal-ai-result" style="display:none;margin-top:12px;background:var(--s1);border-radius:10px;padding:12px 14px;font-size:.74rem;line-height:1.6;color:var(--t1)"></div>
+    </div>
   </div>
 </div>
 <script>
@@ -534,8 +520,6 @@
     + '<button id="ob-strava-btn" style="width:100%;background:#FC4C02;border:none;color:#fff;font-size:.85rem;font-weight:700;padding:13px 20px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">'
     + '<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>'
     + 'Connetti Strava</button>'
-    + '<div style="margin:14px 0;border-top:1px solid rgba(255,255,255,.08);padding-top:14px;text-align:left">'
-    
     + '<button id="ob-skip-btn" style="width:100%;background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.5);font-size:.78rem;padding:10px 20px;border-radius:10px;cursor:pointer">Continua senza Strava</button>'
     + '<div style="font-size:.65rem;color:rgba(255,255,255,.2);margin-top:12px">Gratuito &middot; Dati protetti</div>'
     + '</div>';
@@ -547,8 +531,6 @@
     window.open(serverUrl + '/auth/strava?userId=' + uid, '_blank', 'width=500,height=700');
   };
   document.getElementById('ob-skip-btn').onclick = function(){
-    var apikey = document.getElementById('ob-apikey').value.trim();
-    if(apikey){ localStorage.setItem('aiKey', apikey); localStorage.setItem('aiProvider','anthropic'); }
     localStorage.setItem('stravaPopupDismissed', '1');
     d.remove();
   };

@@ -19,6 +19,61 @@ function dbSave(data){
     fetch(serverUrl+'/api/user/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({athleteId:aid},data))}).catch(function(){});
   },1500);
 }
+var _dbSettingsTimer=null;
+function dbSaveSettings(data){
+  var aid=getAthleteId(); var serverUrl=getServerUrl();
+  if(!aid||!serverUrl) return;
+  clearTimeout(_dbSettingsTimer);
+  _dbSettingsTimer=setTimeout(function(){
+    fetch(serverUrl+'/api/user/settings/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({athleteId:aid},data))})
+    .then(function(r){return r.json();}).then(function(d){if(d.ok) toast('✓ Salvato nel cloud');}).catch(function(){});
+  },1500);
+}
+function dbLoadSettings(){
+  var aid=getAthleteId(); if(!aid) return;
+  var serverUrl=getServerUrl(); if(!serverUrl) return;
+  fetch(serverUrl+'/api/user/settings/load?athleteId='+aid)
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.error) return;
+      if(d.profile&&Object.keys(d.profile).length){ localStorage.setItem('athlete',JSON.stringify(d.profile)); loadProfile(); }
+      if(d.aiProvider){ localStorage.setItem('aiProvider',d.aiProvider); var el=$('ai-provider'); if(el) el.value=d.aiProvider; }
+      if(d.aiKey){ localStorage.setItem('aiKey',d.aiKey); var el=$('apikey'); if(el) el.value=d.aiKey; }
+      if(d.aiModel){ localStorage.setItem('aiModel',d.aiModel); var el=$('ai-model'); if(el) el.value=d.aiModel; }
+      if(d.customPrompt){ localStorage.setItem('customPlanPrompt',d.customPrompt); }
+    }).catch(function(){});
+}
+function dbLoad(){
+  var aid=getAthleteId(); if(!aid) return;
+  var serverUrl=getServerUrl(); if(!serverUrl) return;
+  fetch(serverUrl+'/api/user/load?athleteId='+aid)
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.error) return;
+      if(d.logs&&d.logs.length){
+        var local=getLogs();
+        var serverIds=d.logs.map(function(l){return String(l.stravaId||l.id);});
+        var onlyLocal=local.filter(function(l){return !serverIds.includes(String(l.stravaId||l.id));});
+        var merged=d.logs.concat(onlyLocal);
+        merged.sort(function(a,b){return new Date(b.data)-new Date(a.data);});
+        localStorage.setItem('logs',JSON.stringify(merged));
+      }
+      if(d.goals&&d.goals.length) localStorage.setItem('goals',JSON.stringify(d.goals));
+      if(d.plan) localStorage.setItem('currentPlan',JSON.stringify(d.plan));
+      renderHome(); drawCharts();
+if(getAthleteId()){ dbLoad(); dbLoadSettings(); setTimeout(function(){ syncStravaActivities(true); },2000); }
+    }).catch(function(){});
+}
+
+var _dbSaveTimer=null;
+function dbSave(data){
+  var aid=getAthleteId(); if(!aid) return;
+  var serverUrl=getServerUrl(); if(!serverUrl) return;
+  clearTimeout(_dbSaveTimer);
+  _dbSaveTimer=setTimeout(function(){
+    fetch(serverUrl+'/api/user/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({athleteId:aid},data))}).catch(function(){});
+  },1500);
+}
 
 var _dbSettingsTimer=null;
 function dbSaveSettings(data){
@@ -79,6 +134,11 @@ function getAthleteId(){
   if(aid && /^[0-9]+$/.test(aid)) return aid;
   return null;
 }
+function getAthleteId(){
+  var aid=localStorage.getItem('athleteId')||localStorage.getItem('stravaUserId')||'';
+  if(aid && /^[0-9]+$/.test(aid)) return aid;
+  return null;
+}
 
 var SPORTS=['Corsa','Bici / Ciclismo','Nuoto','Triathlon','Palestra / Forza','Trail Running','MTB','Sci di fondo','Altro'];
 var DAYS7=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
@@ -87,20 +147,33 @@ var disciplines=[], chatHist=[], extractedData={}, planBusy=false, coachOpen=fal
 $('dateLabel').textContent=new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
 // ── Tabs ─────────────────────────────────────
-var TABS=['home','log','goals','plan','calc'];
-var TAB_TITLES={home:'Dashboard',log:'Allenamenti',goals:'Obiettivi',plan:'Piano',calc:'Calcolatore'};
+var TABS=['home','log','plan'];
+var TAB_TITLES={home:'Dashboard',log:'Allenamenti',plan:'Piano'};
 function showTab(id){
   TABS.forEach(function(t){ var tab=$('tab-'+t); if(tab) tab.classList.toggle('active',t===id); var nav=$('nav-'+t); if(nav) nav.classList.toggle('active',t===id); });
   var tb=$('topbar-title'); if(tb) tb.textContent=TAB_TITLES[id]||'';
   if(id==='home'){ renderHome(); drawCharts(); }
 }
+function switchPlanTab(t){
+  ['piano','obiettivi','calc'].forEach(function(id){
+    var el=document.getElementById('plan-sub-'+id);
+    if(el) el.style.display=id===t?'block':'none';
+  });
+  document.querySelectorAll('.plan-subtab').forEach(function(btn){
+    var active=btn.getAttribute('data-tab')===t;
+    btn.style.background=active?'var(--s3)':'transparent';
+    btn.style.color=active?'var(--t0)':'var(--t2)';
+    btn.style.fontWeight=active?'600':'500';
+  });
+}
+window.switchPlanTab=switchPlanTab;
 $('nav-home').onclick=function(){ showTab('home'); };
 $('nav-log').onclick=function(){ showTab('log'); };
-$('nav-goals').onclick=function(){ showTab('goals'); };
 $('nav-plan').onclick=function(){ showTab('plan'); };
-$('nav-calc').onclick=function(){ showTab('calc'); };
+if($('nav-goals')) $('nav-goals').onclick=function(){ showTab('plan'); switchPlanTab('obiettivi'); };
+if($('nav-calc')) $('nav-calc').onclick=function(){ showTab('plan'); switchPlanTab('calc'); };
 $('btn-goto-plan').onclick=function(){ showTab('plan'); };
-$('btn-goto-goals').onclick=function(){ showTab('goals'); };
+if($('btn-goto-goals')) $('btn-goto-goals').onclick=function(){ showTab('plan'); switchPlanTab('obiettivi'); };
 $('btn-goto-log').onclick=function(){ showTab('log'); };
 
 // ── Modals ────────────────────────────────────
@@ -1015,6 +1088,11 @@ window.openActivityModal = function(lid){
   var aiBtn=document.getElementById('btn-analyze-activity');
   if(aiResult){aiResult.style.display='none';aiResult.innerHTML='';}
   if(aiBtn){aiBtn.disabled=false;aiBtn.textContent='\u2726 Analizza con AI';}
+  _currentActivityForAI=l;
+  var aiResult=document.getElementById('act-modal-ai-result');
+  var aiBtn=document.getElementById('btn-analyze-activity');
+  if(aiResult){aiResult.style.display='none';aiResult.innerHTML='';}
+  if(aiBtn){aiBtn.disabled=false;aiBtn.textContent='\u2726 Analizza con AI';}
   // Show modal
   document.getElementById('activity-modal').style.display='flex';
   document.getElementById('activity-modal').onclick=function(e){ if(e.target===this) closeActivityModal(); };
@@ -1221,7 +1299,6 @@ function showCoachReport(session){
   localStorage.setItem('lastCoachReport',JSON.stringify(report));
   if($('notif-dot')) $('notif-dot').classList.add('show');
   renderHome();
-  var logs=getLogs().slice(0,14);
   var splitsText='';
   if(session.splits&&session.splits.length){
     splitsText='\nSplits: '+session.splits.map(function(s,i){
@@ -1229,23 +1306,17 @@ function showCoachReport(session){
       return 'km'+(i+1)+' '+p+(s.fc?' FC'+s.fc:'');
     }).join(', ');
   }
-  var storico=logs.filter(function(l){return l.id!==session.id;}).slice(0,7).map(function(l){
+  var storico=getLogs().filter(function(l){return l.id!==session.id;}).slice(0,7).map(function(l){
     return l.data+' '+(l.sport||l.tipo||'run')+' '+(l.distanza||'')+' FC'+(l.fc||'--')+' TSS'+(l.tss||0);
   }).join('\n');
   var sys='Sei un coach di endurance esperto. Rispondi in italiano. Sii diretto e usa dati numerici.';
   var prompt='Attività completata:\nTipo: '+(session.sport||session.tipo||'corsa')+'\nDistanza: '+(session.distanza||'--')+'\nDurata: '+(session.durata||'--')+'\nFC media: '+(session.fc||'--')+' bpm\nTSS: '+(session.tss||0)+splitsText+'\n\nStorico recente:\n'+storico+'\n\nScrivi analisi in 3 parti:\n1. SINTESI: cosa è andato bene/male\n2. TREND: cosa emerge dallo storico\n3. CONSIGLIO: prossimi 2-3 giorni\nMax 120 parole.';
   callAI([{role:'user',content:prompt}],sys,500)
     .then(function(txt){
-      report.analisi=txt;
-      localStorage.setItem('lastCoachReport',JSON.stringify(report));
+      report.analisi=txt; localStorage.setItem('lastCoachReport',JSON.stringify(report));
       var cb=$('cr-body'); if(cb) cb.innerHTML=txt.replace(/\n/g,'<br>').replace(/^(\d+\. [A-Z]+:)/gm,'<strong>$1</strong>');
-    })
-    .catch(function(){});
+    }).catch(function(){});
 }
-
-
-// ── CALCOLATORE LIVE ──────────────────────────────────
-var _cDist = 21.0975;
 
 function _fmtTime(s) {
   s = Math.round(s);
