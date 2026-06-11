@@ -147,13 +147,22 @@ var disciplines=[], chatHist=[], extractedData={}, planBusy=false, coachOpen=fal
 $('dateLabel').textContent=new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
 // ── Tabs ─────────────────────────────────────
-var TABS=['home','log','plan'];
-var TAB_TITLES={home:'Dashboard',log:'Allenamenti',plan:'Piano'};
+var TABS=['home','log','plan','calendario','profilo-atleta'];
+var TAB_TITLES={home:'Dashboard',log:'Allenamenti',plan:'Piano',calendario:'Calendario'};
+TAB_TITLES['profilo-atleta']='Profilo';
 function showTab(id){
   TABS.forEach(function(t){ var tab=$('tab-'+t); if(tab) tab.classList.toggle('active',t===id); var nav=$('nav-'+t); if(nav) nav.classList.toggle('active',t===id); });
+  // bottom nav
+  ['home','plan','profilo'].forEach(function(bn){
+    var el=$('bn-'+bn); if(el) el.classList.toggle('active', (bn==='plan'&&id==='calendario')||(bn==='profilo'&&id==='profilo-atleta')||(bn===id));
+  });
   var tb=$('topbar-title'); if(tb) tb.textContent=TAB_TITLES[id]||'';
   if(id==='home'){ renderHome(); drawCharts(); }
+  if(id==='calendario'){ renderCalendar(calWeekOffset); }
+  if(id==='profilo-atleta'){ renderProfiloTab(); }
 }
+function switchTab(id){ showTab(id); }
+window.switchTab=switchTab;
 function switchPlanTab(t){
   ['piano','obiettivi','calc'].forEach(function(id){
     var el=document.getElementById('plan-sub-'+id);
@@ -169,32 +178,43 @@ function switchPlanTab(t){
 window.switchPlanTab=switchPlanTab;
 $('nav-home').onclick=function(){ showTab('home'); };
 $('nav-log').onclick=function(){ showTab('log'); };
-$('nav-plan').onclick=function(){ showTab('plan'); };
+$('nav-plan').onclick=function(){ showTab('calendario'); };
+if($('nav-profilo-tab')) $('nav-profilo-tab').onclick=function(){ showTab('profilo-atleta'); };
 if($('nav-goals')) $('nav-goals').onclick=function(){ showTab('plan'); switchPlanTab('obiettivi'); };
 if($('nav-calc')) $('nav-calc').onclick=function(){ showTab('plan'); switchPlanTab('calc'); };
 $('btn-goto-plan').onclick=function(){ showTab('plan'); };
 if($('btn-goto-goals')) $('btn-goto-goals').onclick=function(){ showTab('plan'); switchPlanTab('obiettivi'); };
 $('btn-goto-log').onclick=function(){ showTab('log'); };
 
+// Bottom nav
+(function(){
+  if($('bn-home')) $('bn-home').onclick=function(){ showTab('home'); };
+  if($('bn-plan')) $('bn-plan').onclick=function(){ showTab('calendario'); };
+  if($('bn-chat')) $('bn-chat').onclick=function(){ var fp=$('coach-fab'); if(fp) fp.click(); };
+  if($('bn-profilo')) $('bn-profilo').onclick=function(){ showTab('profilo-atleta'); };
+})();
+
 // ── Modals ────────────────────────────────────
 function openModal(id){ $(id).classList.add('open'); }
 function closeModal(id){ $(id).classList.remove('open'); }
 $('open-profilo').onclick=function(){ openModal('profilo-modal'); };
-$('open-settings').onclick=function(){
+function _openSettings(){
   openModal('settings-modal');
-  // Server URL
   var su=getServerUrl(); if(su&&$('server-url')) $('server-url').value=su;
-  // AI settings
   var _prov=localStorage.getItem('aiProvider')||'anthropic';
   var _key=localStorage.getItem('aiKey')||'';
   var _mod=localStorage.getItem('aiModel')||'';
   if($('ai-provider')) $('ai-provider').value=_prov;
   if($('apikey')) $('apikey').value=_key;
   if($('ai-model')) $('ai-model').value=_mod;
-  // Prompt
   var _sp=localStorage.getItem('customPlanPrompt');
   if($('custom-plan-prompt')) $('custom-plan-prompt').value=_sp!==null?_sp:getDefaultPrompt();
-};
+}
+$('open-settings').onclick=_openSettings;
+if($('open-settings-topbar')) $('open-settings-topbar').onclick=_openSettings;
+if($('open-profilo-from-tab')) $('open-profilo-from-tab').onclick=function(){ openModal('profilo-modal'); };
+if($('open-profilo-prefs')) $('open-profilo-prefs').onclick=function(){ openModal('profilo-modal'); };
+if($('ptab-strava-btn')) $('ptab-strava-btn').onclick=function(){ var f=$('btn-connect-strava'); if(f) f.click(); };
 $('close-profilo').onclick=function(){ closeModal('profilo-modal'); };
 $('btn-close-profilo').onclick=function(){ closeModal('profilo-modal'); };
 $('close-settings').onclick=function(){ closeModal('settings-modal'); };
@@ -1490,7 +1510,121 @@ function updateTipoSuggest(){
 }
 (function(){ if($('l-tipo')){ $('l-tipo').onchange=updateTipoSuggest; updateTipoSuggest(); } })();
 
+// ── CALENDARIO ────────────────────────────────
+function getMonday(date){ var d=new Date(date); var day=d.getDay(); var diff=d.getDate()-day+(day===0?-6:1); d.setDate(diff); d.setHours(0,0,0,0); return d; }
+function addDays(d,n){ var r=new Date(d); r.setDate(r.getDate()+n); return r; }
+function isSameDay(a,b){ return a.toDateString()===b.toDateString(); }
+var SPORT_ICONS={'corsa':'🏃','bici':'🚴','nuoto':'🏊','triathlon':'⛹️','palestra':'🏋️','trail':'🏔️','forza':'🏋️','mobilit':'🧘','riposo':'😴','gara':'🏁'};
+function sportIcon(s){ if(!s) return '💪'; var l=s.toLowerCase(); for(var k in SPORT_ICONS){ if(l.indexOf(k)>=0) return SPORT_ICONS[k]; } return '💪'; }
+function zonePillClass(s){ if(!s) return 'default'; var l=s.toLowerCase(); if(l.indexOf('vo2')>=0) return 'vo2'; if(l.indexOf('sweet')>=0||l.indexOf('soglia')>=0||l.indexOf('tempo')>=0) return 'ss'; if(l.indexOf('z2')>=0||l.indexOf('facile')>=0||l.indexOf('base')>=0||l.indexOf('lungo')>=0) return 'z2'; if(l.indexOf('gym')>=0||l.indexOf('palestra')>=0||l.indexOf('forza')>=0||l.indexOf('strength')>=0) return 'gym'; if(l.indexOf('mobil')>=0||l.indexOf('stretch')>=0||l.indexOf('core')>=0) return 'mobility'; if(l.indexOf('riposo')>=0||l.indexOf('rest')>=0) return 'rest'; return 'default'; }
+function miniChartHtml(log){
+  var bars='';
+  for(var i=0;i<22;i++){
+    var seed=((log.id||0)+i*17)%100;
+    var h=12+Math.abs(Math.sin((log.id||1)*0.3+i)*72);
+    var cls=h>65?'high':h>40?'med':'low';
+    bars+='<div class="rt-chart-bar '+cls+'" style="height:'+Math.round(h)+'%"></div>';
+  }
+  return '<div class="rt-act-chart"><div class="rt-chart-bars">'+bars+'</div></div>';
+}
+var calWeekOffset=0;
+function renderCalendar(weekOff){
+  var cont=$('cal-days-container'); if(!cont) return;
+  var now=new Date();
+  var mon=getMonday(now);
+  mon.setDate(mon.getDate()+(weekOff||0)*7);
+  var wlbl=$('cal-week-label');
+  if(wlbl){ if(!weekOff) wlbl.textContent='Questa settimana'; else if(weekOff===1) wlbl.textContent='Prossima settimana'; else if(weekOff===-1) wlbl.textContent='Settimana scorsa'; else{ var sun=addDays(mon,6); wlbl.textContent=mon.getDate()+'/'+(mon.getMonth()+1)+' — '+sun.getDate()+'/'+(sun.getMonth()+1); } }
+  var logs=getLogs();
+  var plan=null; try{ plan=JSON.parse(localStorage.getItem('currentPlan')||'null'); }catch(e){}
+  var planDays=(plan&&Array.isArray(plan.giorni))?plan.giorni:[];
+  var html='';
+  var dayNames=['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
+  for(var di=0;di<7;di++){
+    var day=addDays(mon,di);
+    var isToday=isSameDay(day,now);
+    var dayStr=day.toISOString().slice(0,10);
+    var dayLogs=logs.filter(function(l){ return l.data&&l.data.slice(0,10)===dayStr; });
+    var dayPlan=planDays.filter(function(d){ return d.data&&d.data.slice(0,10)===dayStr; });
+    html+='<div class="rt-day-section"><div class="rt-day-header"><div class="rt-day-num">'+day.getDate()+'</div><div class="rt-day-label'+(isToday?' today-label':'')+'">'+dayNames[di]+(isToday?' — Oggi':'')+'</div></div>';
+    // Done activities
+    dayLogs.forEach(function(log){
+      var zone=log.tipo||'Corsa'; var zpc=zonePillClass(zone);
+      var metrics='';
+      if(log.km) metrics+='<div class="rt-metric-item"><div class="rt-metric-val">'+parseFloat(log.km).toFixed(1)+'</div><div class="rt-metric-lbl">km</div></div>';
+      if(log.durata) metrics+='<div class="rt-metric-item"><div class="rt-metric-val">'+log.durata+'</div><div class="rt-metric-lbl">Durata</div></div>';
+      if(log.power) metrics+='<div class="rt-metric-item"><div class="rt-metric-val">'+log.power+' W</div><div class="rt-metric-lbl">Potenza</div></div>';
+      if(log.fc) metrics+='<div class="rt-metric-item"><div class="rt-metric-val">'+log.fc+'</div><div class="rt-metric-lbl">FC bpm</div></div>';
+      if(log.tss) metrics+='<div class="rt-metric-item"><div class="rt-metric-val">'+log.tss+'</div><div class="rt-metric-lbl">Load</div></div>';
+      html+='<div class="rt-act-card done-card" onclick="openActivityModal(\''+log.id+'\')">';
+      html+='<div class="rt-card-header"><div class="rt-card-header-left"><div class="rt-card-sport-row"><span class="rt-card-sport-icon">'+sportIcon(zone)+'</span><span class="rt-card-sport-label">'+zone+'</span>'+(log.stravaId?'<span class="rt-card-source">via Strava</span>':'')+'</div>';
+      html+='<div class="rt-card-title">'+(log.titolo||log.tipo||'Allenamento')+'</div>';
+      html+='<span class="rt-zone-pill '+zpc+'">'+zone+'</span></div>';
+      html+='<div class="rt-card-header-right"><div class="rt-card-duration">'+(log.durata||'—')+'</div></div></div>';
+      html+=miniChartHtml(log);
+      if(metrics) html+='<div class="rt-act-metrics">'+metrics+'</div>';
+      html+='<div class="rt-card-actions"><button class="rt-card-btn" onclick="event.stopPropagation();openActivityModal(\''+log.id+'\')">\u2795 Review</button></div></div>';
+    });
+    // Planned sessions
+    dayPlan.forEach(function(pd){
+      var isRest=!pd.tipo||pd.tipo.toLowerCase().indexOf('riposo')>=0;
+      if(isRest) return;
+      var zone=(Array.isArray(pd.zone)?pd.zone[0]:null)||pd.zona||pd.disciplina||'';
+      var zpc=zonePillClass(zone);
+      html+='<div class="rt-act-card plan-card"><div class="rt-card-header"><div class="rt-card-header-left">';
+      html+='<div class="rt-card-sport-row"><span class="rt-card-sport-icon">'+sportIcon(pd.disciplina)+'</span><span class="rt-card-sport-label">Piano</span></div>';
+      html+='<div class="rt-card-title">'+(pd.titolo||pd.disciplina||'Sessione pianificata')+'</div>';
+      if(zone) html+='<span class="rt-zone-pill '+zpc+'">'+zone+'</span>';
+      html+='</div><div class="rt-card-header-right"><div class="rt-card-duration">'+(pd.durata||'—')+'</div></div></div>';
+      if(pd.descrizione) html+='<div class="rt-plan-desc">'+pd.descrizione+'</div>';
+      html+='<div class="rt-card-actions"><button class="rt-card-btn ghost">\u2795 Guide</button></div></div>';
+    });
+    if(dayLogs.length===0&&dayPlan.length===0){
+      html+='<div style="padding:8px 4px 12px;font-size:.7rem;color:var(--t3)">Nessun allenamento</div>';
+    }
+    html+='</div>';
+  }
+  cont.innerHTML=html;
+}
+if($('btn-cal-prev')) $('btn-cal-prev').onclick=function(){ calWeekOffset--; renderCalendar(calWeekOffset); };
+if($('btn-cal-next')) $('btn-cal-next').onclick=function(){ calWeekOffset++; renderCalendar(calWeekOffset); };
 
+// ── PROFILO TAB ───────────────────────────────
+function renderProfiloTab(){
+  var p=getProfile(); var goals=getGoals();
+  if($('ptab-ftp')) $('ptab-ftp').innerHTML=(p.ftp||'—')+'<span class="profile-stat-unit">W</span>';
+  if($('ptab-peso')) $('ptab-peso').innerHTML=(p.peso||'—')+'<span class="profile-stat-unit">kg</span>';
+  if($('ptab-fcmax')) $('ptab-fcmax').innerHTML=(p.fcmax||'—')+'<span class="profile-stat-unit">bpm</span>';
+  if($('ptab-vo2')) $('ptab-vo2').textContent=p.vo2||'—';
+  if($('ptab-livello')) $('ptab-livello').textContent=p.livello||'—';
+  var ftpkg=(p.ftp&&p.peso)?(p.ftp/p.peso).toFixed(1):'—';
+  if($('ptab-ftpkg')) $('ptab-ftpkg').innerHTML=ftpkg+'<span class="profile-stat-unit">W/kg</span>';
+  var logs=getLogs(),now=new Date();
+  var tssArr=[]; for(var w=3;w>=0;w--){ var ws=new Date(now); ws.setDate(now.getDate()-((now.getDay()+6)%7)-w*7); ws.setHours(0,0,0,0); var we=new Date(ws); we.setDate(ws.getDate()+7); var wt=logs.filter(function(l){ var d=new Date(l.data); return d>=ws&&d<we; }).reduce(function(a,l){ return a+(parseInt(l.tss)||0); },0); tssArr.push(wt); }
+  var ctl=50,atl=50; tssArr.forEach(function(t){ ctl+=(t-ctl)/42; atl+=(t-atl)/7; });
+  var form=+(ctl-atl).toFixed(1);
+  if($('ptab-form-num')){ $('ptab-form-num').textContent=form; $('ptab-form-num').style.color=form>5?'var(--gn)':form>-10?'var(--am)':'var(--rd)'; }
+  if($('ptab-form-label')) $('ptab-form-label').textContent=form>5?'Fresco — pronto a spingere':form>-10?'Maintaining':form>-20?'Affaticato':'Molto affaticato';
+  var cv=$('ptab-sparkline'); if(cv&&cv.getContext){ var W=cv.offsetWidth||280,H=28; cv.width=W; cv.height=H; var ctx=cv.getContext('2d'); ctx.clearRect(0,0,W,H); var mx=Math.max.apply(null,tssArr.concat([1])); var pts=tssArr.map(function(t,i){ return {x:W*i/Math.max(tssArr.length-1,1),y:H-(t?Math.min(H-2,t/mx*(H-4)):H/2)}; }); if(pts.length>1){ ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y); pts.slice(1).forEach(function(pt){ ctx.lineTo(pt.x,pt.y); }); ctx.strokeStyle='rgba(44,92,246,.55)'; ctx.lineWidth=1.5; ctx.stroke(); } }
+  var gl=$('ptab-goals-list'); if(gl){ if(!goals.length){ gl.innerHTML='<p style="font-size:.74rem;color:var(--t2)">Nessun obiettivo. Aggiungine uno nel Piano.</p>'; } else{ gl.innerHTML=goals.map(function(g){ var bc=g.prio&&g.prio.indexOf('B')>=0?'prio-b':g.prio&&g.prio.indexOf('C')>=0?'prio-c':''; return '<div class="goal-row"><div class="goal-bullet '+bc+'"></div><div><div class="goal-text">'+g.nome+'</div><div class="goal-date">'+(g.tipo||'')+' '+(g.data||'')+(g.target?' → '+g.target:'')+'</div></div></div>'; }).join(''); } }
+  var disc=$('ptab-disciplines'); if(disc){ var discs=(p.disciplines||[]).filter(function(d){ return d.inc!==false; }); if(!discs.length) disc.innerHTML='<span style="color:var(--t3)">Configura le discipline nel profilo.</span>'; else disc.innerHTML=discs.map(function(d){ return '• '+d.sport+(d.ore?' — '+d.ore+'h/sett':'')+(d.giorni&&d.giorni.length?' ('+d.giorni.join(', ')+')':''); }).join('<br>'); }
+  var aid=getAthleteId(); var stEl=$('ptab-strava-status'); var stBtn=$('ptab-strava-btn');
+  if(stEl) stEl.textContent=aid?'Connesso (ID '+aid+')':'Non connesso';
+  if(stBtn){ stBtn.textContent=aid?'Disconnetti':'Connetti'; stBtn.onclick=function(){ if(aid){ disconnectStrava(); renderProfiloTab(); } else { var f=$('btn-connect-strava'); if(f) f.click(); } }; }
+}
 
+// ── EXPORT CSV/XLSX ───────────────────────────
+function exportPlanXlsx(){
+  var plan=null; try{ plan=JSON.parse(localStorage.getItem('currentPlan')||'null'); }catch(e){}
+  var logs=getLogs();
+  var rows=[['Data','Giorno','Tipo','Titolo','Descrizione','Durata','TSS','km','FC media','Potenza','Zona','Note','Fonte']];
+  if(plan&&Array.isArray(plan.giorni)){ plan.giorni.forEach(function(d){ rows.push([d.data||'',d.data?(new Date(d.data+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short'})):'',d.disciplina||'',d.titolo||'',d.descrizione||'',d.durata||'',d.tss||'',d.distanza||'','','',Array.isArray(d.zone)?d.zone.join(', '):(d.zona||''),'','Piano AI']); }); }
+  logs.forEach(function(l){ rows.push([l.data||'',l.data?(new Date(l.data+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short'})):'',l.tipo||'',l.titolo||'',l.note||'',l.durata||'',l.tss||'',l.km||'',l.fc||'',l.power||'','',l.note||'',l.stravaId?'Strava':'Manuale']); });
+  var csv='\uFEFF'+rows.map(function(r){ return r.map(function(c){ var s=String(c).replace(/"/g,'""'); return /[,;\n"]/.test(s)?'"'+s+'"':s; }).join(';'); }).join('\r\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='piano_allenamento.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('✓ Piano esportato (apri in Excel)');
+}
+if($('btn-export-xlsx')) $('btn-export-xlsx').onclick=exportPlanXlsx;
 
 })();

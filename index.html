@@ -57,7 +57,8 @@
   <div class="sb-nav">
     <div class="sb-item active" id="nav-home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></div>
     <div class="sb-item" id="nav-log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Allenamenti</span></div>
-    <div class="sb-item" id="nav-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Piano</span></div>
+    <div class="sb-item" id="nav-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Calendario</span></div>
+    <div class="sb-item" id="nav-profilo-tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Profilo</span></div>
   </div>
   <div class="sb-bottom">
     <div class="sb-profile" id="open-profilo">
@@ -73,13 +74,18 @@
 
 <main class="main">
   <!-- TOP BAR -->
-  <div id="topbar" style="position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:10px 20px;margin:-26px -26px 22px -26px">
+  <div id="topbar" style="position:sticky;top:0;z-index:50;background:var(--s1);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:10px 16px;margin:-24px -16px 20px -16px;box-shadow:0 1px 4px rgba(0,0,0,.06)">
     <button id="mob-menu-btn" class="mob-btn" style="background:none;border:none;cursor:pointer;padding:6px;display:flex;flex-direction:column;gap:4px;flex-shrink:0;border-radius:6px;transition:background .12s" aria-label="Menu">
       <span style="display:block;width:17px;height:1.5px;background:var(--t1);border-radius:1px"></span>
       <span style="display:block;width:17px;height:1.5px;background:var(--t1);border-radius:1px"></span>
       <span style="display:block;width:17px;height:1.5px;background:var(--t1);border-radius:1px"></span>
     </button>
-    <span style="font-size:.8rem;font-weight:600;color:var(--t1);letter-spacing:-.3px" id="topbar-title">Dashboard</span>
+    <span style="font-size:.85rem;font-weight:800;color:var(--t0);letter-spacing:-.4px" id="topbar-title">Dashboard</span>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+      <div class="topbar-settings-icon" id="open-settings-topbar" title="Impostazioni">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </div>
+    </div>
   </div>
   <div id="tab-home" class="tab active">
 
@@ -370,8 +376,145 @@
 
   </div>
 
+  <!-- ── CALENDARIO TAB ──────────────────────── -->
+  <div id="tab-calendario" class="tab">
+    <div class="pg-head" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div>
+          <h1>Calendario</h1>
+          <p id="cal-week-label">Questa settimana</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-ghost" id="btn-cal-prev" style="padding:7px 10px">&#8249;</button>
+          <button class="btn btn-ghost" id="btn-cal-next" style="padding:7px 10px">&#8250;</button>
+          <button class="export-plan-btn" id="btn-export-xlsx" title="Esporta piano Excel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="8 13 10 16 12 13"/><line x1="10" y1="16" x2="10" y2="20"/></svg>
+            .xlsx
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="cal-days-container"></div>
+    <div id="cal-empty" style="display:none" class="card">
+      <p style="font-size:.74rem;color:var(--t2)">Nessun allenamento questa settimana. Vai al Piano per generarlo.</p>
+    </div>
+  </div>
+
+  <!-- ── PROFILO TAB ─────────────────────────── -->
+  <div id="tab-profilo-atleta" class="tab">
+    <div class="pg-head" style="margin-bottom:14px">
+      <h1>Profilo atleta</h1>
+    </div>
+
+    <!-- FTP / stats card -->
+    <div class="profile-hero">
+      <div class="profile-hero-head">
+        <span class="profile-hero-title">Atleta</span>
+        <button class="profile-btn-edit" id="open-profilo-from-tab">Modifica</button>
+      </div>
+      <div class="profile-stats-row">
+        <div class="profile-stat">
+          <div class="profile-stat-val" id="ptab-ftp">—<span class="profile-stat-unit">W</span></div>
+          <div class="profile-stat-lbl">FTP</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-val" id="ptab-ftpkg">—<span class="profile-stat-unit">W/kg</span></div>
+          <div class="profile-stat-lbl">FTP/kg</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-val" id="ptab-peso">—<span class="profile-stat-unit">kg</span></div>
+          <div class="profile-stat-lbl">Peso</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-val" id="ptab-fcmax">—<span class="profile-stat-unit">bpm</span></div>
+          <div class="profile-stat-lbl">FC max</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-val" id="ptab-vo2">—</div>
+          <div class="profile-stat-lbl">VO2max</div>
+        </div>
+        <div class="profile-stat">
+          <div class="profile-stat-val" id="ptab-livello" style="font-size:.85rem;letter-spacing:-.2px">—</div>
+          <div class="profile-stat-lbl">Livello</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Training Status -->
+    <div class="training-status-card">
+      <div class="ts-head">
+        <span class="ts-title">Training Status</span>
+        <span class="ts-arrow">›</span>
+      </div>
+      <div class="ts-score">
+        <span class="ts-num" id="ptab-form-num" style="color:var(--acc-l)">—</span>
+        <span class="ts-label" id="ptab-form-label">Calcolando...</span>
+      </div>
+      <canvas id="ptab-sparkline" class="ts-sparkline"></canvas>
+    </div>
+
+    <!-- Obiettivi -->
+    <div class="goals-card">
+      <div class="goals-card-head">
+        <span class="goals-card-title">Obiettivi</span>
+        <button class="profile-btn-edit" onclick="switchTab('plan');setTimeout(function(){switchPlanTab('obiettivi')},100)">Modifica</button>
+      </div>
+      <div id="ptab-goals-list">
+        <p style="font-size:.74rem;color:var(--t2)">Nessun obiettivo. Aggiungine uno nel Piano.</p>
+      </div>
+    </div>
+
+    <!-- Preferenze / Periodizzazione -->
+    <div class="prefs-card">
+      <div class="prefs-head">
+        <span class="prefs-title">Preferenze allenamento</span>
+        <button class="profile-btn-edit" id="open-profilo-prefs">Modifica</button>
+      </div>
+      <div id="ptab-disciplines" class="prefs-text" style="color:var(--t2);font-size:.73rem">
+        Configura le discipline nel profilo.
+      </div>
+    </div>
+
+    <!-- Connessione Strava -->
+    <div class="card">
+      <div class="card-label">Connessioni</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:32px;height:32px;background:#FC4C02;border-radius:8px;display:flex;align-items:center;justify-content:center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+          </div>
+          <div>
+            <div style="font-size:.78rem;font-weight:700;color:var(--t0)">Strava</div>
+            <div style="font-size:.63rem;color:var(--t2)" id="ptab-strava-status">Non connesso</div>
+          </div>
+        </div>
+        <button class="btn btn-ghost" id="ptab-strava-btn" style="font-size:.68rem">Connetti</button>
+      </div>
+    </div>
+  </div>
+
 
 </main>
+
+<!-- BOTTOM NAV (mobile) -->
+<nav class="bottom-nav" id="bottom-nav">
+  <div class="bn-item active" id="bn-home">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span>Dashboard</span>
+  </div>
+  <div class="bn-item" id="bn-plan">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+    <span>Calendario</span>
+  </div>
+  <div class="bn-item" id="bn-chat">
+    <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+    <span>Chat</span>
+  </div>
+  <div class="bn-item" id="bn-profilo">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    <span>Profilo</span>
+  </div>
+</nav>
 
 <button id="coach-fab"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><div id="notif-dot"></div></button>
 
