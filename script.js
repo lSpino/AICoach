@@ -142,7 +142,7 @@ function getAthleteId(){
 
 var SPORTS=['Corsa','Bici / Ciclismo','Nuoto','Triathlon','Palestra / Forza','Trail Running','MTB','Sci di fondo','Altro'];
 var DAYS7=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
-var disciplines=[], chatHist=[], extractedData={}, planBusy=false, coachOpen=false;
+var disciplines=[], chatHist=[], extractedData={}, planBusy=false, coachOpen=false, lastTab='home';
 
 $('dateLabel').textContent=new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
@@ -151,17 +151,23 @@ var TABS=['home','log','plan','calendario','chat','profilo-atleta'];
 var TAB_TITLES={home:'Dashboard',log:'Allenamenti',plan:'Piano',calendario:'Calendario',chat:'Coach AI'};
 TAB_TITLES['profilo-atleta']='Profilo';
 function showTab(id){
+  if(id!=='chat'&&TABS.indexOf(id)>=0) lastTab=id;
   TABS.forEach(function(t){ var tab=$('tab-'+t); if(tab) tab.classList.toggle('active',t===id); var nav=$('nav-'+t); if(nav) nav.classList.toggle('active',t===id); });
   // bottom nav sync
-  var bnMap={home:'home',log:'home',plan:'plan',calendario:'plan',chat:'chat','profilo-atleta':'profilo'};
-  ['home','plan','chat','profilo'].forEach(function(bn){
+  var bnMap={home:'home',log:'home',plan:'plan',calendario:'plan',chat:'','profilo-atleta':'profilo'};
+  ['home','plan','profilo'].forEach(function(bn){
     var el=$('bn-'+bn); if(el) el.classList.toggle('active', bnMap[id]===bn);
   });
   var tb=$('topbar-title'); if(tb) tb.textContent=TAB_TITLES[id]||'';
+  var topbar=$('topbar'); if(topbar) topbar.style.display=id==='chat'?'none':'flex';
+  var bottomNav=$('bottom-nav'); if(bottomNav) bottomNav.style.display=id==='chat'?'none':'';
   if(id==='home'){ renderHome(); drawCharts(); }
   if(id==='calendario'){ renderCalendar(calWeekOffset); }
   if(id==='profilo-atleta'){ renderProfiloTab(); }
-  if(id==='chat'){ setTimeout(function(){var m=$('cp-msgs');if(m)m.scrollTop=m.scrollHeight;},50); }
+  if(id==='chat'){
+    var dot=$('chat-notif-dot'); if(dot) dot.style.display='none';
+    setTimeout(function(){var m=$('cp-msgs');if(m)m.scrollTop=m.scrollHeight;},50);
+  }
   // Sync desktop subnav
   ['home','calendario','plan','chat','profilo-atleta','log'].forEach(function(t){
     var el=document.getElementById('dsn-'+t); if(!el) return;
@@ -173,6 +179,7 @@ function showTab(id){
 }
 function switchTab(id){ showTab(id); }
 window.switchTab=switchTab;
+window.showTab=showTab;
 function switchPlanTab(t){
   ['piano','obiettivi','calc'].forEach(function(id){
     var el=document.getElementById('plan-sub-'+id);
@@ -186,28 +193,30 @@ function switchPlanTab(t){
   });
 }
 window.switchPlanTab=switchPlanTab;
-$('nav-home').onclick=function(){ showTab('home'); };
-$('nav-log').onclick=function(){ showTab('log'); };
-$('nav-plan').onclick=function(){ showTab('calendario'); };
+if($('nav-home')) $('nav-home').onclick=function(){ showTab('home'); };
+if($('nav-log')) $('nav-log').onclick=function(){ showTab('log'); };
+if($('nav-plan')) $('nav-plan').onclick=function(){ showTab('calendario'); };
 if($('nav-profilo-tab')) $('nav-profilo-tab').onclick=function(){ showTab('profilo-atleta'); };
 if($('nav-goals')) $('nav-goals').onclick=function(){ showTab('plan'); switchPlanTab('obiettivi'); };
 if($('nav-calc')) $('nav-calc').onclick=function(){ showTab('plan'); switchPlanTab('calc'); };
-$('btn-goto-plan').onclick=function(){ showTab('plan'); };
+if($('btn-goto-plan')) $('btn-goto-plan').onclick=function(){ showTab('plan'); };
 if($('btn-goto-goals')) $('btn-goto-goals').onclick=function(){ showTab('plan'); switchPlanTab('obiettivi'); };
-$('btn-goto-log').onclick=function(){ showTab('log'); };
+if($('btn-goto-log')) $('btn-goto-log').onclick=function(){ showTab('log'); };
 
-// Bottom nav
+// Bottom nav + topbar actions
 (function(){
   if($('bn-home')) $('bn-home').onclick=function(){ showTab('home'); };
   if($('bn-plan')) $('bn-plan').onclick=function(){ showTab('calendario'); };
-  if($('bn-chat')) $('bn-chat').onclick=function(){ showTab('chat'); };
   if($('bn-profilo')) $('bn-profilo').onclick=function(){ showTab('profilo-atleta'); };
+  if($('open-chat-topbar')) $('open-chat-topbar').onclick=function(){ showTab('chat'); };
+  if($('btn-topbar-refresh')) $('btn-topbar-refresh').onclick=function(){ syncStravaActivities(false); toast('Sincronizzazione avviata'); };
+  if($('chat-back-btn')) $('chat-back-btn').onclick=function(){ showTab(lastTab||'calendario'); };
 })();
 
 // ── Modals ────────────────────────────────────
 function openModal(id){ $(id).classList.add('open'); }
 function closeModal(id){ $(id).classList.remove('open'); }
-$('open-profilo').onclick=function(){ openModal('profilo-modal'); };
+if($('open-profilo')) $('open-profilo').onclick=function(){ openModal('profilo-modal'); };
 function _openSettings(){
   openModal('settings-modal');
   var su=getServerUrl(); if(su&&$('server-url')) $('server-url').value=su;
@@ -220,7 +229,7 @@ function _openSettings(){
   var _sp=localStorage.getItem('customPlanPrompt');
   if($('custom-plan-prompt')) $('custom-plan-prompt').value=_sp!==null?_sp:getDefaultPrompt();
 }
-$('open-settings').onclick=_openSettings;
+if($('open-settings')) $('open-settings').onclick=_openSettings;
 if($('open-settings-topbar')) $('open-settings-topbar').onclick=_openSettings;
 if($('open-profilo-from-tab')) $('open-profilo-from-tab').onclick=function(){ openModal('profilo-modal'); };
 if($('open-profilo-prefs')) $('open-profilo-prefs').onclick=function(){ openModal('profilo-modal'); };
@@ -1232,17 +1241,41 @@ function doExtract(dataUrl){
 $('btn-save-extract').onclick=function(){ if(!extractedData||!extractedData.tipo) return; extractedData.note=$('extNote').value.trim(); addLog(Object.assign({},extractedData)); $('extractPreview').style.display='none'; $('extNote').value=''; $('extNoteArea').style.display='none'; extractedData={}; };
 $('btn-cancel-extract').onclick=function(){ $('extractPreview').style.display='none'; extractedData={}; };
 
-// ── Coach FAB ─────────────────────────────────
-$('coach-fab').onclick=toggleCoach; $('cp-close').onclick=toggleCoach;
-function toggleCoach(){ coachOpen=!coachOpen; $('coach-panel').classList.toggle('open',coachOpen); if(coachOpen){ $('notif-dot').classList.remove('show'); $('cpInput').focus(); } }
-function openCoachWithMsg(msg){ cpAppend('coach',msg); if(!coachOpen) $('notif-dot').classList.add('show'); else $('cp-msgs').scrollTop=$('cp-msgs').scrollHeight; }
+// ── Coach / Chat ─────────────────────────────────
+function openCoach(){ showTab('chat'); }
+window.openCoach=openCoach;
+function openGuideForPlan(pd){
+  showTab('chat');
+  var msg='Guidami per la sessione di oggi: '+(pd.titolo||pd.disciplina||'allenamento');
+  if(pd.descrizione) msg+='. '+pd.descrizione;
+  if(pd.durata) msg+=' (durata: '+pd.durata+')';
+  var inp=$('cpInput'); if(inp){ inp.value=msg; inp.focus(); }
+}
+window.openGuideForPlan=openGuideForPlan;
+function openCoachWithMsg(msg){ cpAppend('coach',msg); var dot=$('chat-notif-dot'); if(dot) dot.style.display='inline-block'; var m=$('cp-msgs'); if(m) m.scrollTop=m.scrollHeight; }
 var sugsEl=$('cp-sugs');
-['Come sto questa settimana?','Rischio infortunio?','Cosa faccio domani?','Analizza ultimo allenamento'].forEach(function(s){ var b=document.createElement('button'); b.className='cp-sug'; b.textContent=s; b.onclick=function(){ $('cpInput').value=s; $('cpInput').focus(); }; sugsEl.appendChild(b); });
-$('cpInput').onkeydown=function(e){ if(e.key==='Enter') cpSend(); }; $('cpSend').onclick=cpSend;
+if(sugsEl){
+  ['Come sto questa settimana?','Rischio infortunio?','Cosa faccio domani?','Analizza ultimo allenamento'].forEach(function(s){ var b=document.createElement('button'); b.className='cp-sug'; b.textContent=s; b.onclick=function(){ $('cpInput').value=s; $('cpInput').focus(); }; sugsEl.appendChild(b); });
+}
+if($('cpInput')) $('cpInput').onkeydown=function(e){ if(e.key==='Enter') cpSend(); };
+if($('cpSend')) $('cpSend').onclick=cpSend;
 function cpSend(){ var inp=$('cpInput'),msg=inp.value.trim(); if(!msg) return; inp.value=''; cpAppend('user',msg); chatHist.push({role:'user',content:msg}); $('cpSend').disabled=true; cpTyping(); callAI(chatHist.slice(-6),buildSys(),400).then(function(r){ cpRmTyping(); chatHist.push({role:'assistant',content:r}); cpAppend('coach',r); }).catch(function(){ cpRmTyping(); cpAppend('coach','Errore di connessione.'); }).finally(function(){ $('cpSend').disabled=false; }); }
-function cpAppend(role,text){ var el=$('cp-msgs'),div=document.createElement('div'); if(role==='coach'){ var ps=text.split('\n\n').filter(function(p){ return p.trim(); }).map(function(p){ return '<p>'+p.replace(/\n/g,'<br>')+'</p>'; }).join(''); div.innerHTML='<div class="cp-role">Coach</div><div class="cp-coach-b">'+ps+'</div>'; }else{ div.className='cp-user-side'; div.innerHTML='<div class="cp-role">Tu</div><div class="cp-user-b">'+text+'</div>'; } el.appendChild(div); el.scrollTop=el.scrollHeight; if(!coachOpen) $('notif-dot').classList.add('show'); }
-function cpTyping(){ var el=$('cp-msgs'),d=document.createElement('div'); d.id='cpt'; d.innerHTML='<div class="cp-role">Coach</div><div class="cp-coach-b" style="color:var(--t3)">Analisi...</div>'; el.appendChild(d); el.scrollTop=el.scrollHeight; }
+function cpAppend(role,text){ var el=$('cp-msgs'); if(!el) return; var div=document.createElement('div'); if(role==='coach'){ var ps=text.split('\n\n').filter(function(p){ return p.trim(); }).map(function(p){ return '<p>'+p.replace(/\n/g,'<br>')+'</p>'; }).join(''); div.innerHTML='<div class="cp-role">Coach</div><div class="cp-coach-b">'+ps+'</div>'; }else{ div.className='cp-user-side'; div.innerHTML='<div class="cp-role">Tu</div><div class="cp-user-b">'+text+'</div>'; } el.appendChild(div); el.scrollTop=el.scrollHeight; var dot=$('chat-notif-dot'); if(dot&&$('tab-chat')&&!$('tab-chat').classList.contains('active')) dot.style.display='inline-block'; }
+function cpTyping(){ var el=$('cp-msgs'); if(!el) return; var d=document.createElement('div'); d.id='cpt'; d.innerHTML='<div class="cp-role">Coach</div><div class="cp-coach-b" style="color:var(--t3)">Analisi...</div>'; el.appendChild(d); el.scrollTop=el.scrollHeight; }
 function cpRmTyping(){ var e=$('cpt'); if(e) e.remove(); }
+if($('btn-save-key')) $('btn-save-key').onclick=function(){
+  if($('ai-provider')) localStorage.setItem('aiProvider',$('ai-provider').value);
+  if($('apikey')&&$('apikey').value.trim()) localStorage.setItem('aiKey',$('apikey').value.trim());
+  if($('ai-model')&&$('ai-model').value.trim()) localStorage.setItem('aiModel',$('ai-model').value.trim());
+  dbSaveSettings({aiProvider:localStorage.getItem('aiProvider'),aiKey:localStorage.getItem('aiKey'),aiModel:localStorage.getItem('aiModel')});
+  toast('Impostazioni AI salvate');
+};
+if($('btn-clear-key')) $('btn-clear-key').onclick=function(){
+  localStorage.removeItem('aiKey');
+  if($('apikey')) $('apikey').value='';
+  dbSaveSettings({aiKey:''});
+  toast('API key rimossa');
+};
 // ── PMC help tooltip ─────────────────────────
 (function(){
   var btn=$('pmc-help-btn'), box=$('pmc-help-box');
@@ -1260,25 +1293,6 @@ function cpRmTyping(){ var e=$('cpt'); if(e) e.remove(); }
 })();
 
 window.onresize=function(){ if(document.querySelector('#tab-home.active')) drawCharts(); };
-
-// ── Mobile menu ──────────────────────────────────
-(function(){
-  var btn=document.getElementById('mob-menu-btn');
-  var ov=document.getElementById('mob-overlay');
-  var sb=document.querySelector('.sidebar');
-  if(!btn||!sb) return;
-  function openMenu(){ sb.classList.add('mob-open'); if(ov) ov.classList.add('show'); }
-  function closeMenu(){ sb.classList.remove('mob-open'); if(ov) ov.classList.remove('show'); }
-  btn.onclick=function(){ sb.classList.contains('mob-open')?closeMenu():openMenu(); };
-  if(ov) ov.onclick=closeMenu;
-  // Close on nav item click (always)
-  sb.querySelectorAll('.sb-item').forEach(function(item){
-    item.addEventListener('click',function(){ closeMenu(); });
-  });
-  sb.querySelectorAll('.sb-profile,.sb-settings-btn').forEach(function(item){
-    item.addEventListener('click',function(){ closeMenu(); });
-  });
-})();
 
 
 function getDefaultPrompt(){
@@ -1327,7 +1341,7 @@ function showCoachReport(session){
   var report={titolo:session.titolo||'Allenamento',data:data,read:false,analisi:'Analisi in corso...',
     stats:[{val:session.distanza||'—',lbl:'distanza'},{val:session.durata||'—',lbl:'durata'},{val:String(session.tss||0),lbl:'TSS'}]};
   localStorage.setItem('lastCoachReport',JSON.stringify(report));
-  if($('notif-dot')) $('notif-dot').classList.add('show');
+  if($('chat-notif-dot')) $('chat-notif-dot').style.display='inline-block';
   renderHome();
   var splitsText='';
   if(session.splits&&session.splits.length){
@@ -1540,6 +1554,8 @@ function miniChartHtml(log){
 var calWeekOffset=0;
 function renderCalendar(weekOff){
   var cont=$('cal-days-container'); if(!cont) return;
+  window._calPlanItems={};
+  var _planItemSeq=0;
   var now=new Date();
   var mon=getMonday(now);
   mon.setDate(mon.getDate()+(weekOff||0)*7);
@@ -1587,7 +1603,9 @@ function renderCalendar(weekOff){
       if(zone) html+='<span class="rt-zone-pill '+zpc+'">'+zone+'</span>';
       html+='</div><div class="rt-card-header-right"><div class="rt-card-duration">'+(pd.durata||'—')+'</div></div></div>';
       if(pd.descrizione) html+='<div class="rt-plan-desc">'+pd.descrizione+'</div>';
-      html+='<div class="rt-card-actions"><button class="rt-card-btn ghost">\u2795 Guide</button></div></div>';
+      var pid='cp'+(++_planItemSeq);
+      window._calPlanItems[pid]=pd;
+      html+='<div class="rt-card-actions"><button class="rt-card-btn ghost rt-guide-btn" data-plan-id="'+pid+'">\u2795 Guide</button></div></div>';
     });
     if(dayLogs.length===0&&dayPlan.length===0){
       html+='<div style="padding:8px 4px 12px;font-size:.7rem;color:var(--t3)">Nessun allenamento</div>';
@@ -1595,6 +1613,14 @@ function renderCalendar(weekOff){
     html+='</div>';
   }
   cont.innerHTML=html;
+  cont.querySelectorAll('.rt-guide-btn').forEach(function(btn){
+    btn.onclick=function(e){
+      e.stopPropagation();
+      var pd=window._calPlanItems[this.dataset.planId];
+      if(pd) openGuideForPlan(pd);
+      else showTab('chat');
+    };
+  });
 }
 if($('btn-cal-prev')) $('btn-cal-prev').onclick=function(){ calWeekOffset--; renderCalendar(calWeekOffset); };
 if($('btn-cal-next')) $('btn-cal-next').onclick=function(){ calWeekOffset++; renderCalendar(calWeekOffset); };
