@@ -10,60 +10,7 @@ function saveLogs(l){ l.sort(function(a,b){return new Date(b.data)-new Date(a.da
 function saveGoals(g){ localStorage.setItem('goals',JSON.stringify(g)); dbSave({goals:g}); }
 function getServerUrl(){ var saved=localStorage.getItem('serverUrl'); return saved||'https://ai-coach-brown.vercel.app'; }
 
-var _dbSaveTimer=null;
-function dbSave(data){
-  var aid=getAthleteId(); if(!aid) return;
-  var serverUrl=getServerUrl(); if(!serverUrl) return;
-  clearTimeout(_dbSaveTimer);
-  _dbSaveTimer=setTimeout(function(){
-    fetch(serverUrl+'/api/user/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({athleteId:aid},data))}).catch(function(){});
-  },1500);
-}
-var _dbSettingsTimer=null;
-function dbSaveSettings(data){
-  var aid=getAthleteId(); var serverUrl=getServerUrl();
-  if(!aid||!serverUrl) return;
-  clearTimeout(_dbSettingsTimer);
-  _dbSettingsTimer=setTimeout(function(){
-    fetch(serverUrl+'/api/user/settings/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({athleteId:aid},data))})
-    .then(function(r){return r.json();}).then(function(d){if(d.ok) toast('✓ Salvato nel cloud');}).catch(function(){});
-  },1500);
-}
-function dbLoadSettings(){
-  var aid=getAthleteId(); if(!aid) return;
-  var serverUrl=getServerUrl(); if(!serverUrl) return;
-  fetch(serverUrl+'/api/user/settings/load?athleteId='+aid)
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.error) return;
-      if(d.profile&&Object.keys(d.profile).length){ localStorage.setItem('athlete',JSON.stringify(d.profile)); loadProfile(); }
-      if(d.aiProvider){ localStorage.setItem('aiProvider',d.aiProvider); var el=$('ai-provider'); if(el) el.value=d.aiProvider; }
-      if(d.aiKey){ localStorage.setItem('aiKey',d.aiKey); var el=$('apikey'); if(el) el.value=d.aiKey; }
-      if(d.aiModel){ localStorage.setItem('aiModel',d.aiModel); var el=$('ai-model'); if(el) el.value=d.aiModel; }
-      if(d.customPrompt){ localStorage.setItem('customPlanPrompt',d.customPrompt); }
-    }).catch(function(){});
-}
-function dbLoad(){
-  var aid=getAthleteId(); if(!aid) return;
-  var serverUrl=getServerUrl(); if(!serverUrl) return;
-  fetch(serverUrl+'/api/user/load?athleteId='+aid)
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.error) return;
-      if(d.logs&&d.logs.length){
-        var local=getLogs();
-        var serverIds=d.logs.map(function(l){return String(l.stravaId||l.id);});
-        var onlyLocal=local.filter(function(l){return !serverIds.includes(String(l.stravaId||l.id));});
-        var merged=d.logs.concat(onlyLocal);
-        merged.sort(function(a,b){return new Date(b.data)-new Date(a.data);});
-        localStorage.setItem('logs',JSON.stringify(merged));
-      }
-      if(d.goals&&d.goals.length) localStorage.setItem('goals',JSON.stringify(d.goals));
-      if(d.plan) localStorage.setItem('currentPlan',JSON.stringify(d.plan));
-      renderHome(); drawCharts();
-if(getAthleteId()){ dbLoad(); dbLoadSettings(); setTimeout(function(){ syncStravaActivities(true); },2000); }
-    }).catch(function(){});
-}
+
 
 var _dbSaveTimer=null;
 function dbSave(data){
@@ -118,14 +65,10 @@ function dbLoad(){
         localStorage.setItem('logs',JSON.stringify(merged));
       }
       if(d.goals&&d.goals.length) localStorage.setItem('goals',JSON.stringify(d.goals));
-      if(d.plan) localStorage.setItem('currentPlan',JSON.stringify(d.plan));
+      if(d.plan){ localStorage.setItem('currentPlan',JSON.stringify(d.plan)); localStorage.setItem('lastPlanDays',JSON.stringify(d.plan)); }
       renderHome(); drawCharts();
-if(getAthleteId()){
-  dbLoad();
-  dbLoadSettings();
-  // Auto-sync Strava ogni volta che si apre l'app (silent)
-  setTimeout(function(){ syncStravaActivities(true); }, 2000);
-}
+      // Auto-sync Strava dopo il caricamento (silent)
+      setTimeout(function(){ syncStravaActivities(true); }, 2000);
     }).catch(function(){});
 }
 function getUserId(){ var id=localStorage.getItem('userId'); if(!id){ id='user_'+Math.random().toString(36).slice(2); localStorage.setItem('userId',id); } return id; }
@@ -142,7 +85,7 @@ function getAthleteId(){
 
 var SPORTS=['Corsa','Bici / Ciclismo','Nuoto','Triathlon','Palestra / Forza','Trail Running','MTB','Sci di fondo','Altro'];
 var DAYS7=['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
-var disciplines=[], chatHist=[], extractedData={}, planBusy=false, coachOpen=false, lastTab='home';
+var disciplines=[], chatHist=[], extractedData={}, planBusy=false, coachOpen=false, lastTab='home', _cDist=10;
 
 $('dateLabel').textContent=new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
@@ -483,7 +426,7 @@ function callAI(messages,system,maxTok){
       return fetch(serverUrl+'/api/ai',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({model:model||'claude-sonnet-4-20250514',max_tokens:maxTok,system:system,messages:messages})
+        body:JSON.stringify({model:model||'claude-sonnet-4-6',max_tokens:maxTok,system:system,messages:messages})
       })
       .then(function(r){
         if(!r.ok) throw new Error('Errore server '+r.status+'. Verifica ANTHROPIC_API_KEY nelle env Vercel.');
@@ -498,9 +441,9 @@ function callAI(messages,system,maxTok){
     return fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
-      body:JSON.stringify({model:model||'claude-sonnet-4-20250514',max_tokens:maxTok,system:system,messages:messages})
+      body:JSON.stringify({model:model||'claude-sonnet-4-6',max_tokens:maxTok,system:system,messages:messages})
     }).then(function(r){return r.json();})
-      .then(function(d){if(d.error) throw new Error('Gemini: '+(d.error.message||d.error.status||JSON.stringify(d.error))); return (d.content||[]).map(function(b){return b.text||'';}).join('');});
+      .then(function(d){if(d.error) throw new Error('Anthropic: '+(d.error.message||d.error.status||JSON.stringify(d.error))); return (d.content||[]).map(function(b){return b.text||'';}).join('');});
   }
 
   // OpenAI
@@ -944,7 +887,9 @@ function generatePlan(){
       if(!Array.isArray(days)) throw new Error('Not array');
       days=days.map(function(d){ if(!Array.isArray(d.blocchi)) d.blocchi=[]; if(typeof d.tss!=='number') d.tss=parseInt(d.tss)||0; return d; });
       localStorage.setItem('lastPlanDays',JSON.stringify(days));
+      localStorage.setItem('currentPlan',JSON.stringify(days));
       localStorage.setItem('lastPlanDate',new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'}));
+      dbSave({plan:days});
       renderPlanUI(days); renderHome(); if(typeof renderCalendar==='function') renderCalendar(calWeekOffset);
       $('plan-gen-date').textContent='Generato il '+localStorage.getItem('lastPlanDate')+' · '+days.length+' giorni';
     })
