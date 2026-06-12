@@ -50,27 +50,7 @@
 </div>
 
 <div id="mob-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:98;backdrop-filter:blur(4px)"></div>
-<aside class="sidebar">
-  <div class="sb-logo">
-    <div class="sb-logo-text">Endurance</div>
-  </div>
-  <div class="sb-nav">
-    <div class="sb-item active" id="nav-home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></div>
-    <div class="sb-item" id="nav-log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Allenamenti</span></div>
-    <div class="sb-item" id="nav-plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Calendario</span></div>
-    <div class="sb-item" id="nav-profilo-tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg><span>Profilo</span></div>
-  </div>
-  <div class="sb-bottom">
-    <div class="sb-profile" id="open-profilo">
-      <div class="av-ring"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg></div>
-      <div><div class="sb-pname" id="sb-name">Profilo</div><div class="sb-psub" id="sb-sport">Configura</div></div>
-    </div>
-    <div class="sb-settings-btn" id="open-settings">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      Impostazioni
-    </div>
-  </div>
-</aside>
+
 
 <main class="main">
   <!-- TOP BAR -->
@@ -87,6 +67,16 @@
       </div>
     </div>
   </div>
+<div id="desktop-subnav" style="display:none;background:var(--s1);border-bottom:1px solid var(--line);padding:0 24px;position:sticky;top:56px;z-index:99">
+  <div style="display:flex;gap:0;max-width:720px;margin:0 auto">
+    <button class="dsn-item active" id="dsn-home" onclick="showTab('home')" style="padding:10px 16px;border:none;background:none;font-size:.78rem;font-weight:600;cursor:pointer;font-family:var(--f);color:var(--t1);border-bottom:2px solid var(--acc-l);position:relative;top:1px">Dashboard</button>
+    <button class="dsn-item" id="dsn-calendario" onclick="showTab('calendario')" style="padding:10px 16px;border:none;background:none;font-size:.78rem;font-weight:500;cursor:pointer;font-family:var(--f);color:var(--t2);border-bottom:2px solid transparent">Calendario</button>
+    <button class="dsn-item" id="dsn-plan" onclick="showTab('plan')" style="padding:10px 16px;border:none;background:none;font-size:.78rem;font-weight:500;cursor:pointer;font-family:var(--f);color:var(--t2);border-bottom:2px solid transparent">Piano</button>
+    <button class="dsn-item" id="dsn-chat" onclick="showTab('chat')" style="padding:10px 16px;border:none;background:none;font-size:.78rem;font-weight:500;cursor:pointer;font-family:var(--f);color:var(--t2);border-bottom:2px solid transparent">Chat AI</button>
+    <button class="dsn-item" id="dsn-profilo-atleta" onclick="showTab('profilo-atleta')" style="padding:10px 16px;border:none;background:none;font-size:.78rem;font-weight:500;cursor:pointer;font-family:var(--f);color:var(--t2);border-bottom:2px solid transparent">Profilo</button>
+  </div>
+</div>
+
   <div id="tab-home" class="tab active">
 
     <div class="home-topbar">
@@ -307,8 +297,14 @@
     </div>
     <!-- Piano sub-content -->
     <div id="plan-sub-piano">
-    <div style="display:flex;gap:8px;margin-bottom:.875rem">
-      <button class="btn btn-primary" id="btn-gen-plan">Genera piano AI</button>
+    <div style="background:var(--acc-l);background:linear-gradient(135deg,#667eea,#764ba2);border-radius:12px;padding:16px;margin-bottom:14px;color:#fff">
+      <div style="font-size:.75rem;font-weight:700;margin-bottom:4px;opacity:.85;text-transform:uppercase;letter-spacing:.5px">Coach AI</div>
+      <div style="font-size:.9rem;font-weight:700;margin-bottom:8px">Genera il tuo piano settimanale</div>
+      <div style="font-size:.72rem;opacity:.8;margin-bottom:12px">Il piano verrà mostrato nel Calendario con gli allenamenti giorno per giorno</div>
+      <button id="btn-gen-plan" style="background:#fff;color:#6b48e8;border:none;border-radius:9px;padding:10px 18px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--f);display:flex;align-items:center;gap:6px;width:100%;justify-content:center">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <span id="gen-plan-text">Genera piano AI</span>
+      </button>
     </div>
     <div id="plan-banner" class="plan-banner" style="display:none"><span class="spin"></span><span>Generazione in corso...</span></div>
     <div id="plan-goals-bar" style="display:none;margin-bottom:.75rem"><div style="font-size:.6rem;color:var(--t2);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:.5rem">Obiettivi</div><div id="plan-goals-tags"></div></div>
@@ -494,6 +490,21 @@
   </div>
 
 
+
+  <!-- CHAT TAB (full screen) -->
+  <div id="tab-chat" class="tab" style="display:flex;flex-direction:column;height:calc(100vh - var(--topbar-h,56px) - var(--nav-h,64px));padding:0">
+    <div id="cp-msgs" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">
+      <div><div style="font-size:.6rem;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;font-weight:600">Coach AI</div>
+      <div style="background:var(--s1);border-radius:4px 14px 14px 14px;padding:10px 14px;font-size:.78rem;line-height:1.7;color:var(--t1);max-width:88%;box-shadow:0 1px 3px rgba(0,0,0,.06)">Ciao! Sono il tuo coach AI. Analizza i tuoi allenamenti, chiedimi consigli sul piano o sulla tua preparazione.</div></div>
+    </div>
+    <div id="cp-sugs" style="display:flex;gap:6px;overflow-x:auto;padding:8px 16px;scrollbar-width:none;flex-shrink:0"></div>
+    <div style="display:flex;gap:8px;padding:10px 16px 12px;border-top:1px solid var(--line);background:var(--bg);flex-shrink:0">
+      <input id="cpInput" placeholder="Chiedi al tuo coach..." style="flex:1;background:var(--s1);border:1px solid var(--line);border-radius:22px;padding:9px 16px;font-size:.8rem;color:var(--t1);font-family:var(--f);outline:none">
+      <button id="cpSend" style="width:38px;height:38px;border-radius:50%;background:var(--acc-l);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      </button>
+    </div>
+  </div>
 </main>
 
 <!-- BOTTOM NAV (mobile) -->
@@ -506,7 +517,7 @@
     <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
     <span>Calendario</span>
   </div>
-  <div class="bn-item" id="bn-chat">
+  <div class="bn-item" id="bn-chat" onclick="showTab('chat')">
     <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
     <span>Chat</span>
   </div>
@@ -516,7 +527,7 @@
   </div>
 </nav>
 
-<button id="coach-fab"><svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg><div id="notif-dot"></div></button>
+
 
 <div id="coach-panel">
   <div class="cp-head"><div style="display:flex;align-items:center;gap:8px"><div class="cp-av">AI</div><div class="cp-head-info"><p>Coach AI</p><span>Analisi personalizzata</span></div></div><button class="cp-x" id="cp-close">×</button></div>

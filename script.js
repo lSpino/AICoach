@@ -147,19 +147,29 @@ var disciplines=[], chatHist=[], extractedData={}, planBusy=false, coachOpen=fal
 $('dateLabel').textContent=new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
 // ── Tabs ─────────────────────────────────────
-var TABS=['home','log','plan','calendario','profilo-atleta'];
-var TAB_TITLES={home:'Dashboard',log:'Allenamenti',plan:'Piano',calendario:'Calendario'};
+var TABS=['home','log','plan','calendario','chat','profilo-atleta'];
+var TAB_TITLES={home:'Dashboard',log:'Allenamenti',plan:'Piano',calendario:'Calendario',chat:'Coach AI'};
 TAB_TITLES['profilo-atleta']='Profilo';
 function showTab(id){
   TABS.forEach(function(t){ var tab=$('tab-'+t); if(tab) tab.classList.toggle('active',t===id); var nav=$('nav-'+t); if(nav) nav.classList.toggle('active',t===id); });
-  // bottom nav
-  ['home','plan','profilo'].forEach(function(bn){
-    var el=$('bn-'+bn); if(el) el.classList.toggle('active', (bn==='plan'&&id==='calendario')||(bn==='profilo'&&id==='profilo-atleta')||(bn===id));
+  // bottom nav sync
+  var bnMap={home:'home',log:'home',plan:'plan',calendario:'plan',chat:'chat','profilo-atleta':'profilo'};
+  ['home','plan','chat','profilo'].forEach(function(bn){
+    var el=$('bn-'+bn); if(el) el.classList.toggle('active', bnMap[id]===bn);
   });
   var tb=$('topbar-title'); if(tb) tb.textContent=TAB_TITLES[id]||'';
   if(id==='home'){ renderHome(); drawCharts(); }
   if(id==='calendario'){ renderCalendar(calWeekOffset); }
   if(id==='profilo-atleta'){ renderProfiloTab(); }
+  if(id==='chat'){ setTimeout(function(){var m=$('cp-msgs');if(m)m.scrollTop=m.scrollHeight;},50); }
+  // Sync desktop subnav
+  ['home','calendario','plan','chat','profilo-atleta','log'].forEach(function(t){
+    var el=document.getElementById('dsn-'+t); if(!el) return;
+    var active=t===id;
+    el.style.color=active?'var(--t1)':'var(--t2)';
+    el.style.fontWeight=active?'600':'500';
+    el.style.borderBottom=active?'2px solid var(--acc-l)':'2px solid transparent';
+  });
 }
 function switchTab(id){ showTab(id); }
 window.switchTab=switchTab;
@@ -190,7 +200,7 @@ $('btn-goto-log').onclick=function(){ showTab('log'); };
 (function(){
   if($('bn-home')) $('bn-home').onclick=function(){ showTab('home'); };
   if($('bn-plan')) $('bn-plan').onclick=function(){ showTab('calendario'); };
-  if($('bn-chat')) $('bn-chat').onclick=function(){ var fp=$('coach-fab'); if(fp) fp.click(); };
+  if($('bn-chat')) $('bn-chat').onclick=function(){ showTab('chat'); };
   if($('bn-profilo')) $('bn-profilo').onclick=function(){ showTab('profilo-atleta'); };
 })();
 
@@ -926,7 +936,7 @@ function generatePlan(){
       days=days.map(function(d){ if(!Array.isArray(d.blocchi)) d.blocchi=[]; if(typeof d.tss!=='number') d.tss=parseInt(d.tss)||0; return d; });
       localStorage.setItem('lastPlanDays',JSON.stringify(days));
       localStorage.setItem('lastPlanDate',new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'}));
-      renderPlanUI(days); renderHome();
+      renderPlanUI(days); renderHome(); if(typeof renderCalendar==='function') renderCalendar(calWeekOffset);
       $('plan-gen-date').textContent='Generato il '+localStorage.getItem('lastPlanDate')+' · '+days.length+' giorni';
     })
     .catch(function(err){ var msg=err&&err.message?err.message:String(err); toast('Errore piano: '+msg.substring(0,60)); $('plan-empty').style.display='block'; console.error('PIANO ERR:',err); })
@@ -1536,8 +1546,8 @@ function renderCalendar(weekOff){
   var wlbl=$('cal-week-label');
   if(wlbl){ if(!weekOff) wlbl.textContent='Questa settimana'; else if(weekOff===1) wlbl.textContent='Prossima settimana'; else if(weekOff===-1) wlbl.textContent='Settimana scorsa'; else{ var sun=addDays(mon,6); wlbl.textContent=mon.getDate()+'/'+(mon.getMonth()+1)+' — '+sun.getDate()+'/'+(sun.getMonth()+1); } }
   var logs=getLogs();
-  var plan=null; try{ plan=JSON.parse(localStorage.getItem('currentPlan')||'null'); }catch(e){}
-  var planDays=(plan&&Array.isArray(plan.giorni))?plan.giorni:[];
+  var plan=null; try{ plan=JSON.parse(localStorage.getItem('lastPlanDays')||'null'); }catch(e){}
+  var planDays=Array.isArray(plan)?plan:(plan&&Array.isArray(plan.giorni))?plan.giorni:[];
   var html='';
   var dayNames=['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
   for(var di=0;di<7;di++){
