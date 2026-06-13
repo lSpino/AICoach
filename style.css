@@ -1,22 +1,22 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  /* RestOrTrain palette — light/white card on soft grey bg */
-  --bg:#f2f2f7;--s1:#ffffff;--s2:#f8f8fb;--s3:#f0f0f5;--s4:#e8e8ef;--s5:#e0e0e9;
-  --line:#e5e5ea;--line2:#d1d1d6;--line3:#c7c7cc;
-  --t0:#1c1c1e;--t1:rgba(28,28,30,.82);--t2:rgba(28,28,30,.45);--t3:rgba(28,28,30,.22);--t4:rgba(28,28,30,.07);
-  --acc:#1d3bdb;--acc-l:#2c5cf6;--acc-ll:#6b8ffb;--acc2:rgba(44,92,246,.10);--acc3:rgba(44,92,246,.06);
-  --gn:#34c759;--gn2:rgba(52,199,89,.12);
-  --swim:#32ade6;--swim2:rgba(50,173,230,.12);
-  --bike:#ff9500;--bike2:rgba(255,149,0,.12);
-  --run:#30d158;--run2:rgba(48,209,88,.12);
-  --rd:#ff3b30;--rd2:rgba(255,59,48,.10);
-  --am:#ff9500;--am2:rgba(255,149,0,.10);
-  --pu:#af52de;--strava:#fc4c02;
+  /* Dark theme */
+  --bg:#0d0d0f;--s1:#1a1a1f;--s2:#1f1f25;--s3:#26262e;--s4:#2e2e38;--s5:#363642;
+  --line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.11);--line3:rgba(255,255,255,.16);
+  --t0:#f0f0f5;--t1:rgba(240,240,245,.85);--t2:rgba(240,240,245,.45);--t3:rgba(240,240,245,.22);--t4:rgba(240,240,245,.07);
+  --acc:#2c5cf6;--acc-l:#5b8ef5;--acc-ll:#8fb0fa;--acc2:rgba(91,142,245,.14);--acc3:rgba(91,142,245,.07);
+  --gn:#30d158;--gn2:rgba(48,209,88,.14);
+  --swim:#32ade6;--swim2:rgba(50,173,230,.14);
+  --bike:#ff9f0a;--bike2:rgba(255,159,10,.14);
+  --run:#30d158;--run2:rgba(48,209,88,.14);
+  --rd:#ff453a;--rd2:rgba(255,69,58,.14);
+  --am:#ff9f0a;--am2:rgba(255,159,10,.14);
+  --pu:#bf5af2;--strava:#fc4c02;
   --vo2:#ff6b6b;--ss:#ffa94d;--gym:#868e96;
   --r:14px;--r-sm:10px;--f:'Inter',system-ui,sans-serif;--mono:'DM Mono',monospace;
-  --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.04);
-  --shadow-md:0 4px 16px rgba(0,0,0,.10),0 1px 4px rgba(0,0,0,.06);
+  --shadow:0 1px 3px rgba(0,0,0,.35),0 4px 12px rgba(0,0,0,.25);
+  --shadow-md:0 4px 16px rgba(0,0,0,.45),0 1px 4px rgba(0,0,0,.30);
 }
 html{scroll-behavior:smooth}
 body{background:var(--bg);color:var(--t0);font-family:var(--f);min-height:100vh;font-size:13px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
@@ -132,6 +132,13 @@ body{background:var(--bg);color:var(--t0);font-family:var(--f);min-height:100vh;
 
 /* ── NEXT SESSIONS ────────────────────────── */
 .nx-lbl{font-size:.6rem;color:var(--t2);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px;margin-top:4px}
+.nx{background:var(--s2);border:1px solid var(--line2);border-radius:var(--r-sm);padding:12px 12px 10px;display:flex;flex-direction:column;gap:3px;position:relative;overflow:hidden}
+.nx::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--acc-l),var(--acc-ll));opacity:.6}
+.nx-day{font-size:.6rem;color:var(--acc-l);text-transform:capitalize;font-weight:700;letter-spacing:.5px;margin-bottom:1px}
+.nx-title{font-size:.75rem;font-weight:600;color:var(--t0);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nx-meta{font-size:.64rem;color:var(--t2);margin-top:1px}
+.nx-tss{font-size:.95rem;font-weight:700;color:var(--acc-l);font-family:var(--mono);margin-top:4px;letter-spacing:-.5px}
+.nx-tss::after{content:' TSS';font-size:.55rem;color:var(--t3);font-weight:400;letter-spacing:.3px}
 .nx3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
 
 /* ── COACH REPORT ─────────────────────────── */
