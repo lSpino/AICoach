@@ -291,6 +291,11 @@ function syncStravaActivities(silent){
         a.stravaId=sid;
         a.tipo=a.titolo||a.sport||'Allenamento';
         if(!a.km && a.distanza) a.km=parseFloat(a.distanza);
+        // Fix timezone: start_date Strava è UTC, convertiamo in data locale
+        if(a.data && a.data.indexOf('T')>=0){
+          var ld=new Date(a.data);
+          a.data=ld.getFullYear()+'-'+String(ld.getMonth()+1).padStart(2,'0')+'-'+String(ld.getDate()).padStart(2,'0');
+        }
         a.fonte='strava'; a.source='strava';
         existing.unshift(a);
       });
