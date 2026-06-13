@@ -97,13 +97,13 @@ function showTab(id){
   if(id!=='chat'&&TABS.indexOf(id)>=0) lastTab=id;
   TABS.forEach(function(t){ var tab=$('tab-'+t); if(tab) tab.classList.toggle('active',t===id); var nav=$('nav-'+t); if(nav) nav.classList.toggle('active',t===id); });
   // bottom nav sync
-  var bnMap={home:'home',log:'home',plan:'plan',calendario:'plan',chat:'','profilo-atleta':'profilo'};
-  ['home','plan','profilo'].forEach(function(bn){
+  var bnMap={home:'home',log:'home',plan:'plan',calendario:'plan',chat:'chat','profilo-atleta':''};
+  ['home','plan','chat'].forEach(function(bn){
     var el=$('bn-'+bn); if(el) el.classList.toggle('active', bnMap[id]===bn);
   });
   var tb=$('topbar-title'); if(tb) tb.textContent=TAB_TITLES[id]||'';
   var topbar=$('topbar'); if(topbar) topbar.style.display=id==='chat'?'none':'flex';
-  var bottomNav=$('bottom-nav'); if(bottomNav) bottomNav.style.display=id==='chat'?'none':'';
+  var bottomNav=$('bottom-nav'); if(bottomNav) bottomNav.style.display='';
   if(id==='home'){ renderHome(); drawCharts(); }
   if(id==='calendario'){ renderCalendar(calWeekOffset); }
   if(id==='profilo-atleta'){ renderProfiloTab(); }
@@ -150,7 +150,7 @@ if($('btn-goto-log')) $('btn-goto-log').onclick=function(){ showTab('log'); };
 (function(){
   if($('bn-home')) $('bn-home').onclick=function(){ showTab('home'); };
   if($('bn-plan')) $('bn-plan').onclick=function(){ showTab('calendario'); };
-  if($('bn-profilo')) $('bn-profilo').onclick=function(){ showTab('profilo-atleta'); };
+  if($('bn-chat')) $('bn-chat').onclick=function(){ showTab('chat'); };
   if($('open-chat-topbar')) $('open-chat-topbar').onclick=function(){ showTab('chat'); };
   if($('btn-topbar-refresh')) $('btn-topbar-refresh').onclick=function(){ syncStravaActivities(false); toast('Sincronizzazione avviata'); };
   if($('chat-back-btn')) $('chat-back-btn').onclick=function(){ showTab(lastTab||'calendario'); };
