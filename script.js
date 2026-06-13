@@ -1343,9 +1343,15 @@ function _parsePace(str) {
   return parseInt(raw.slice(0,2), 10)*60 + parseInt(raw.slice(2), 10);
 }
 function _autoFmtTime(str) {
+  // Rimuove non-digit, max 6 cifre
   var raw = str.replace(/\D/g, '').slice(0, 6);
+  if (raw.length === 0) return '';
   if (raw.length <= 2) return raw;
-  if (raw.length <= 4) return raw.slice(0,2) + ':' + raw.slice(2);
+  // 3-4 cifre: MM:SS (niente ore)
+  if (raw.length <= 4) return raw.slice(0,-2) + ':' + raw.slice(-2);
+  // 5 cifre: H:MM:SS (senza zero davanti alle ore)
+  if (raw.length === 5) return raw.slice(0,1) + ':' + raw.slice(1,3) + ':' + raw.slice(3);
+  // 6 cifre: HH:MM:SS
   return raw.slice(0,2) + ':' + raw.slice(2,4) + ':' + raw.slice(4);
 }
 function _autoFmtPace(str) {
