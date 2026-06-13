@@ -570,7 +570,7 @@ function loadProfile(){
   var elKey=$('p-ai-key'); if(elKey) elKey.value=key;
   var elModel=$('p-ai-model'); if(elModel) elModel.value=model;
 }
-function updateSb(){ var p=getProfile(); if($('sb-name')) $('sb-name').textContent=p.nome||'Profilo'; $('sb-sport').textContent=(p.disciplines&&p.disciplines.length)?p.disciplines.map(function(d){ return d.sport; }).join(' · '):(p.livello||'Configura'); }
+function updateSb(){ var p=getProfile(); if($('sb-name')) $('sb-name').textContent=p.nome||'Profilo'; if($('sb-sport')) $('sb-sport').textContent=(p.disciplines&&p.disciplines.length)?p.disciplines.map(function(d){ return d.sport; }).join(' · '):(p.livello||'Configura'); }
 loadProfile();
 
 // ── AI Indicators ─────────────────────────────
