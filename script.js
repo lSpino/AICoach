@@ -1327,11 +1327,14 @@ function _fmtPace(s) {
   return Math.floor(s/60) + ':' + (s%60 < 10 ? '0' : '') + s%60;
 }
 function _parseTime(str) {
+  var parts = str.trim().split(':');
+  if (parts.length === 3) return parseInt(parts[0],10)*3600 + parseInt(parts[1],10)*60 + parseInt(parts[2],10);
+  if (parts.length === 2) return parseInt(parts[0],10)*60 + parseInt(parts[1],10);
   var raw = str.replace(/\D/g, '');
   if (!raw) return 0;
   if (raw.length <= 2) return parseInt(raw, 10) * 60;
-  if (raw.length <= 4) return parseInt(raw.slice(0,2), 10)*3600 + parseInt(raw.slice(2), 10)*60;
-  return parseInt(raw.slice(0,2),10)*3600 + parseInt(raw.slice(2,4),10)*60 + parseInt(raw.slice(4),10);
+  if (raw.length <= 4) return parseInt(raw.slice(0,-2), 10)*60 + parseInt(raw.slice(-2), 10);
+  return parseInt(raw.slice(0,2),10)*3600 + parseInt(raw.slice(2,4),10)*60 + parseInt(raw.slice(4,6),10);
 }
 function _parsePace(str) {
   var raw = str.replace(/\D/g, '');
