@@ -755,7 +755,10 @@ function renderHome(){
     while(_show.length<3) _show.push(null);
     _show.forEach(function(item){
       var nx=document.createElement('div'); nx.className='nx';
-      if(item){ nx.innerHTML='<div class="nx-day">'+_DAYS[item.d]+'</div><div class="nx-title">'+(item.p.titolo||'—')+'</div><div class="nx-meta">'+(item.p.distanza||item.p.durata||'—')+'</div><div class="nx-tss">'+(item.p.tss||'—')+'</div>'; }
+      if(item){
+        var _nxDay=item.p.data?new Date(item.p.data+'T12:00:00').toLocaleDateString('it-IT',{weekday:'short'}):_DAYS[item.d%7];
+        nx.innerHTML='<div class="nx-day">'+_nxDay+'</div><div class="nx-title">'+(item.p.titolo||'—')+'</div><div class="nx-meta">'+(item.p.distanza||item.p.durata||'—')+'</div><div class="nx-tss">'+(item.p.tss||'—')+'</div>';
+      }
       else { nx.innerHTML='<div class="nx-day" style="color:var(--t3)">—</div><div class="nx-title" style="color:var(--t3)">Nessuna</div><div class="nx-meta"></div><div class="nx-tss"></div>'; nx.style.opacity='.25'; }
       _ns.appendChild(nx);
     });
@@ -1516,12 +1519,14 @@ function renderCalendar(weekOff){
   var planDays=Array.isArray(plan)?plan:(plan&&Array.isArray(plan.giorni))?plan.giorni:[];
   var html='';
   var dayNames=['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
-  for(var di=0;di<7;di++){
+  for(var di=6;di>=0;di--){
     var day=addDays(mon,di);
     var isToday=isSameDay(day,now);
     var dayStr=day.toISOString().slice(0,10);
-    var dayLogs=logs.filter(function(l){ return l.data&&l.data.slice(0,10)===dayStr; });
-    var dayPlan=planDays.filter(function(d){ return d.data&&d.data.slice(0,10)===dayStr; });
+    // Fix timezone locale per confronto date log
+    var dayStrLocal=(function(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); })(day);
+    var dayLogs=logs.filter(function(l){ return l.data&&l.data.slice(0,10)===dayStrLocal; });
+    var dayPlan=planDays.filter(function(d){ return d.data&&d.data.slice(0,10)===dayStrLocal; });
     html+='<div class="rt-day-section"><div class="rt-day-header"><div class="rt-day-num">'+day.getDate()+'</div><div class="rt-day-label'+(isToday?' today-label':'')+'">'+dayNames[di]+(isToday?' — Oggi':'')+'</div></div>';
     // Done activities
     dayLogs.forEach(function(log){
