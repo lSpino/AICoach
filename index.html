@@ -63,12 +63,13 @@
       <span id="topbar-title" class="topbar-subtitle">Dashboard</span>
     </div>
     <div class="topbar-actions">
+      <button class="topbar-icon-btn topbar-chat-btn" id="open-chat-topbar" title="Coach AI" aria-label="Coach AI">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span id="chat-notif-dot" class="chat-notif-dot"></span>
+      </button>
       <div class="topbar-settings-icon" id="open-settings-topbar" title="Impostazioni">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       </div>
-      <button class="topbar-icon-btn" id="open-profilo-topbar" title="Profilo" aria-label="Profilo" onclick="showTab('profilo-atleta')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-      </button>
     </div>
   </div>
 <div id="desktop-subnav" style="display:none;background:var(--s1);border-bottom:1px solid var(--line);padding:0 24px;position:sticky;top:56px;z-index:99">
@@ -83,7 +84,7 @@
 
   <div id="tab-home" class="tab active">
 
-    <div class="home-topbar" style="display:none">
+    <div class="home-topbar">
       <div class="home-greeting">
         <h1 id="greetingLabel">Buongiorno</h1>
         <p id="dateLabel"></p>
@@ -166,15 +167,11 @@
         <div class="sc-sub" id="carico-sub">TSS totale</div>
         <div class="sc-bar"><div class="sc-fill" id="carico-bar" style="width:0%;background:var(--am)"></div></div>
       </div>
-      <div class="sc sc-wide">
-        <div class="sc-left">
-          <div class="sc-val" id="goal-days-val" style="color:var(--acc-ll)">—</div>
-        </div>
-        <div class="sc-right">
-          <div class="sc-lbl">Obiettivo primario</div>
-          <div class="sc-sub" id="goal-days-sub">Nessun obiettivo</div>
-          <div class="sc-bar"><div class="sc-fill" id="goal-days-bar" style="width:0%;background:var(--acc)"></div></div>
-        </div>
+      <div class="sc">
+        <div class="sc-lbl">Obiettivo primario</div>
+        <div class="sc-val" id="goal-days-val" style="color:var(--acc-ll)">—</div>
+        <div class="sc-sub" id="goal-days-sub">Nessun obiettivo</div>
+        <div class="sc-bar"><div class="sc-fill" id="goal-days-bar" style="width:0%;background:var(--acc)"></div></div>
       </div>
     </div>
 
@@ -183,7 +180,7 @@
       <div class="wk-days" id="week-days-grid"></div>
     </div>
 
-    <div class="nx-lbl" style="font-size:.6rem;color:var(--t2);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin:18px 0 10px">Prossime sessioni</div>
+    <div class="nx-lbl">Prossime sessioni</div>
     <div class="nx3" id="next-sessions"></div>
 
     <div style="display:none" id="strava-banner"><span id="strava-name"></span><span id="strava-sub"></span><span id="strava-actions"></span></div>
@@ -534,9 +531,9 @@
     <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
     <span>Dashboard</span>
   </div>
-  <div class="bn-item" id="bn-chat">
-    <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-    <span>Coach AI</span>
+  <div class="bn-item" id="bn-profilo">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    <span>Profilo</span>
   </div>
 </nav>
 

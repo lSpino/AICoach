@@ -503,7 +503,7 @@ function callAI(messages,system,maxTok){
 
 // ── System prompt ─────────────────────────────
 function buildSys(){
-  var p=getProfile(),goals=getGoals(),logs=getLogs().slice(0,6);
+  var p=getProfile(),goals=getGoals(),allLogs=getLogs(),logs=allLogs.slice(0,8);
   var ds=(p.disciplines&&p.disciplines.length)?p.disciplines.map(function(d){ return (d.inc===false?'[NO] ':'[SI] ')+d.sport+' '+(d.ore||'?')+'h giorni:'+((d.giorni&&d.giorni.join('/'))||'flex'); }).join(' | '):'?';
   var gs=goals.length?goals.map(function(g){ return g.prio.charAt(0)+':'+g.nome+' '+g.data+(g.target?' '+g.target:''); }).join(' | '):'Nessuno';
   var ls=logs.length?logs.map(function(l){
@@ -514,7 +514,36 @@ function buildSys(){
     }
     return s;
   }).join(' | '):'Nessuno';
-  return 'Coach endurance AI. Italiano, tecnico, conciso, no emoji.\nAtleta: '+(p.nome||'?')+' '+(p.eta||'?')+'anni '+(p.peso||'?')+'kg '+(p.livello||'?')+'\nFisio: FCmax='+(p.fcmax||'?')+' FCSoglia='+(p.fcsoglia||'?')+' FTP='+(p.ftp||'?')+'W Ritmo='+(p.ritmo||'?')+'/km\nDiscipline: '+ds+'\nObiettivi: '+gs+'\nUltimi all.: '+ls;
+  // Carico recente: somma TSS e km su 7gg e 28gg
+  var now=new Date();
+  function sumWindow(days){
+    var from=new Date(now); from.setDate(now.getDate()-days);
+    var sel=allLogs.filter(function(l){ var d=new Date(l.data); return d>=from&&d<=now; });
+    var tss=sel.reduce(function(a,l){return a+(parseFloat(l.tss)||0);},0);
+    var km=sel.reduce(function(a,l){return a+(parseFloat(l.km||l.distanza)||0);},0);
+    return {n:sel.length,tss:Math.round(tss),km:km.toFixed(1)};
+  }
+  var w7=sumWindow(7), w28=sumWindow(28);
+  var carico='Ultimi 7gg: '+w7.n+' sessioni, '+w7.tss+' TSS, '+w7.km+'km | Ultimi 28gg: '+w28.n+' sessioni, '+w28.tss+' TSS, '+w28.km+'km';
+  // Piano attuale (prossimi giorni programmati)
+  var planCtx='Nessun piano attivo';
+  try{
+    var plan=JSON.parse(localStorage.getItem('currentPlan')||'null');
+    if(Array.isArray(plan)&&plan.length){
+      var todayStr=now.toISOString().slice(0,10);
+      var upcoming=plan.filter(function(d){return d.data>=todayStr;}).slice(0,5);
+      if(upcoming.length) planCtx=upcoming.map(function(d){return d.data+': '+(d.titolo||d.tipo||'')+(d.tss?' (TSS '+d.tss+')':'');}).join(' | ');
+    }
+  }catch(e){}
+  return 'Sei il coach personale endurance di questo atleta. Conosci tutto il suo storico, profilo e piano. Rispondi in italiano, tono da coach esperto, tecnico ma diretto, no emoji.\n'+
+    'Atleta: '+(p.nome||'?')+' '+(p.eta||'?')+'anni '+(p.peso||'?')+'kg '+(p.livello||'?')+'\n'+
+    'Fisio: FCmax='+(p.fcmax||'?')+' FCSoglia='+(p.fcsoglia||'?')+' FTP='+(p.ftp||'?')+'W Ritmo soglia='+(p.ritmo||'?')+'/km\n'+
+    'Discipline: '+ds+'\n'+
+    'Obiettivi: '+gs+'\n'+
+    'Carico allenamento: '+carico+'\n'+
+    'Piano programmato (prossime sessioni): '+planCtx+'\n'+
+    'Ultimi allenamenti registrati: '+ls+'\n'+
+    'Quando dai consigli, considera sempre il carico recente (per evitare sovrallenamento), gli obiettivi e le scadenze, e la coerenza con il piano programmato.';
 }
 
 // ── Disciplines ───────────────────────────────
@@ -1108,9 +1137,10 @@ function analyzeActivity(){
   }
   var logs=getLogs().filter(function(x){return x.id!==l.id;}).slice(0,10);
   var storico=logs.map(function(x){ return x.data+' '+(x.sport||x.tipo||'run')+' '+(x.distanza||'')+' FC'+(x.fc||'--')+' TSS'+(x.tss||0); }).join('\n');
-  var sys='Sei un coach di endurance esperto. Rispondi in italiano. Usa i dati numerici reali.';
-  var prompt='Analizza questa attività:\nTipo: '+(l.sport||l.tipo||'corsa')+'\nData: '+(l.data||'')+'\nDistanza: '+(l.distanza||'--')+'\nDurata: '+(l.durata||'--')+'\nFC media: '+(l.fc||'--')+(l.fcMax?' / max '+l.fcMax:'')+' bpm\nTSS: '+(l.tss||0)+(l.elevation?' D+'+l.elevation+'m':'')+splitsText+'\n\nStorico:\n'+storico+'\n\nFornisci analisi in 4 parti:\n1. QUALITA\': valuta intensità e distribuzione del passo\n2. PUNTI DI FORZA: cosa ha funzionato\n3. MIGLIORAMENTI: cosa lavorare\n4. PROSSIMA SESSIONE: consiglio specifico\nMax 150 parole.';
-  callAI([{role:'user',content:prompt}],sys,600)
+  var goals=getGoals();
+  var goalCtx=goals.length?goals.map(function(g){ return '['+g.prio+'] '+g.nome+' ('+g.tipo+') il '+g.data+(g.target?' target:'+g.target:''); }).join(' | '):'Nessun obiettivo specifico';
+  var prompt='Analizza questa attività dell\'atleta (tieni conto del suo profilo, livello, fisiologia, obiettivi e storico già forniti nel system prompt):\nTipo: '+(l.sport||l.tipo||'corsa')+'\nData: '+(l.data||'')+'\nDistanza: '+(l.distanza||'--')+'\nDurata: '+(l.durata||'--')+'\nFC media: '+(l.fc||'--')+(l.fcMax?' / max '+l.fcMax:'')+' bpm\nTSS: '+(l.tss||0)+(l.elevation?' D+'+l.elevation+'m':'')+splitsText+'\n\nAltre attività recenti (non in system):\n'+storico+'\n\nObiettivi attuali: '+goalCtx+'\n\nFornisci analisi in 4 parti, contestualizzata rispetto al piano e agli obiettivi dell\'atleta:\n1. QUALITA\': valuta intensità e distribuzione del passo rispetto al suo livello/zone\n2. PUNTI DI FORZA: cosa ha funzionato\n3. MIGLIORAMENTI: cosa lavorare\n4. PROSSIMA SESSIONE: consiglio specifico, coerente con il piano e il recupero\nMax 150 parole.';
+  callAI([{role:'user',content:prompt}],buildSys(),600)
     .then(function(txt){
       if(btn){btn.disabled=false;btn.textContent='\u2726 Rianalizza';}
       if(result) result.innerHTML=txt.replace(/\n/g,'<br>').replace(/^(\d+\. [A-Z\u00C0-\u00FF ]+:)/gm,'<strong style="color:var(--acc-l)">$1</strong>');
@@ -1271,11 +1301,27 @@ function getDefaultPrompt(){
     incl.forEach(function(d){ if((d.giorni||[]).indexOf(DN[dow])>=0) sports.push(d.sport); });
     allDays.push(d2.toISOString().split('T')[0]+'|'+DN[dow]+'|'+(sports.length?sports.join('+'):'Riposo'));
   }
-  var prompt='Genera piano di allenamento. Per ogni giorno ti fornisco la data e la disciplina.\n\n';
+  // Storico recente per partire dal carico attuale reale dell'atleta
+  var recentLogs=getLogs().slice(0,10);
+  var storicoStr=recentLogs.length?recentLogs.map(function(l){
+    return l.data+' '+(l.sport||l.tipo||'')+' '+(l.km||l.distanza||'')+'km TSS'+(l.tss||0)+(l.fc?' FC'+l.fc:'');
+  }).join('\n'):'Nessun allenamento registrato di recente';
+  var now=new Date();
+  function sumW(days){
+    var from=new Date(now); from.setDate(now.getDate()-days);
+    var sel=getLogs().filter(function(l){var d=new Date(l.data); return d>=from&&d<=now;});
+    return {n:sel.length,tss:Math.round(sel.reduce(function(a,l){return a+(parseFloat(l.tss)||0);},0))};
+  }
+  var w7=sumW(7);
+
+  var prompt='Genera piano di allenamento personalizzato. Per ogni giorno ti fornisco la data e la disciplina.\n\n';
   prompt+='GIORNI (data|giorno|sport, Riposo=riposo obbligatorio):\n';
   prompt+=allDays.join('\n');
   prompt+='\n\nOBIETTIVI: '+goalStr+'\n';
   prompt+='ATLETA: '+params+'\n\n';
+  prompt+='CARICO RECENTE (ultimi 7gg): '+w7.n+' sessioni, '+w7.tss+' TSS totali.\n';
+  prompt+='ULTIMI ALLENAMENTI SVOLTI:\n'+storicoStr+'\n\n';
+  prompt+='IMPORTANTE: la prima settimana del piano deve essere coerente con il carico attuale dell\'atleta (non aumentare troppo bruscamente il volume/intensità rispetto a quanto sta già facendo). Costruisci la progressione partendo da questo livello reale.\n\n';
   prompt+='Progressione su '+(pg?Math.round(totalDays/7):8)+' settimane con tapering finale.\n\n';
   if(pg){
     prompt+='IMPORTANTE: l\'ULTIMO giorno del piano ('+pg.data+') È IL GIORNO DI GARA: '+pg.nome+'.\n';
@@ -1306,9 +1352,8 @@ function showCoachReport(session){
   var storico=getLogs().filter(function(l){return l.id!==session.id;}).slice(0,7).map(function(l){
     return l.data+' '+(l.sport||l.tipo||'run')+' '+(l.distanza||'')+' FC'+(l.fc||'--')+' TSS'+(l.tss||0);
   }).join('\n');
-  var sys='Sei un coach di endurance esperto. Rispondi in italiano. Sii diretto e usa dati numerici.';
-  var prompt='Attività completata:\nTipo: '+(session.sport||session.tipo||'corsa')+'\nDistanza: '+(session.distanza||'--')+'\nDurata: '+(session.durata||'--')+'\nFC media: '+(session.fc||'--')+' bpm\nTSS: '+(session.tss||0)+splitsText+'\n\nStorico recente:\n'+storico+'\n\nScrivi analisi in 3 parti:\n1. SINTESI: cosa è andato bene/male\n2. TREND: cosa emerge dallo storico\n3. CONSIGLIO: prossimi 2-3 giorni\nMax 120 parole.';
-  callAI([{role:'user',content:prompt}],sys,500)
+  var prompt='Attività completata (sei il coach personale di questo atleta, tieni conto del suo profilo, obiettivi, piano e storico già forniti nel system prompt):\nTipo: '+(session.sport||session.tipo||'corsa')+'\nDistanza: '+(session.distanza||'--')+'\nDurata: '+(session.durata||'--')+'\nFC media: '+(session.fc||'--')+' bpm\nTSS: '+(session.tss||0)+splitsText+'\n\nAltre attività recenti (non in system):\n'+storico+'\n\nScrivi analisi in 3 parti, in coerenza con il piano di allenamento e gli obiettivi dell\'atleta:\n1. SINTESI: cosa è andato bene/male rispetto al piano previsto\n2. TREND: cosa emerge dallo storico e dal carico recente\n3. CONSIGLIO: prossimi 2-3 giorni, in linea con il piano e gli obiettivi\nMax 120 parole.';
+  callAI([{role:'user',content:prompt}],buildSys(),500)
     .then(function(txt){
       report.analisi=txt; localStorage.setItem('lastCoachReport',JSON.stringify(report));
       var cb=$('cr-body'); if(cb) cb.innerHTML=txt.replace(/\n/g,'<br>').replace(/^(\d+\. [A-Z]+:)/gm,'<strong>$1</strong>');
